@@ -1,5 +1,5 @@
 import uuid
-from typing import List
+from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, desc, asc
 
@@ -20,7 +20,7 @@ class ChatRepository:
         )
         return result.scalar_one_or_none()
 
-    async def create_session(self, user_uuid: uuid.UUID, track_uuid: uuid.UUID, session_name: str, db: AsyncSession):
+    async def create_session(self, user_uuid: uuid.UUID, track_uuid: Optional[uuid.UUID], session_name: str, db: AsyncSession):
         new_session = ChatSession(
             user_id=user_uuid,
             track_id=track_uuid,
