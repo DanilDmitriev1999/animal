@@ -3,14 +3,15 @@
 """
 from fastapi import WebSocket
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, desc, asc, delete
+from sqlalchemy import select, and_, desc
 from typing import Dict, List, Optional
 import json
 import logging
 from datetime import datetime
 import uuid
 
-from models.database_models import User, ChatSession, Chat, ChatMessage, LearningTrack
+from models.database_models import User, LearningTrack, Chat, ChatSession
+from services.chat_repository import ChatRepository
 from services.openai_service import create_openai_service
 
 logger = logging.getLogger(__name__)
@@ -27,6 +28,9 @@ class ChatManager:
         self.guest_chat_history: Dict[str, List[dict]] = {}
         # Словарь соответствий сессий и чатов для гостей: session_id -> chat_id
         self.guest_session_chats: Dict[str, str] = {}
+        self.history_file = "guest_history.json"
+        self._load_guest_history()
+        self.repo = ChatRepository()
     
     async def connect(self, websocket: WebSocket, session_id: str):
         """Подключение нового WebSocket"""
@@ -50,125 +54,90 @@ class ChatManager:
             await websocket.send_text(json.dumps(message))
 
     async def create_or_get_session(self, user_id: str, track_id: str, session_name: str = None, db: AsyncSession = None) -> str:
-        """Создает новую чат-сессию или возвращает существующую для трека"""
-        
-        is_guest = user_id.startswith("guest_")
-        
-        if not is_guest and db:
-            try:
-                user_uuid = uuid.UUID(user_id)
-                track_uuid = uuid.UUID(track_id)
-                
-                # Ищем существующую активную сессию для трека
-                result = await db.execute(
-                    select(ChatSession).where(
-                        and_(
-                            ChatSession.user_id == user_uuid,
-                            ChatSession.track_id == track_uuid,
-                            ChatSession.status == "active"
-                        )
-                    ).order_by(desc(ChatSession.created_at))
-                )
-                existing_session = result.scalar_one_or_none()
-                
-                if existing_session:
-                    logger.info(f"Found existing session {existing_session.id} for track {track_id}")
-                    return str(existing_session.id)
-                
-                # Создаем новую сессию
-                new_session = ChatSession(
-                    user_id=user_uuid,
-                    track_id=track_uuid,
-                    session_name=session_name or f"Planning Session {datetime.utcnow().strftime('%d.%m %H:%M')}",
-                    status="active"
-                )
-                db.add(new_session)
-                await db.commit()
-                await db.refresh(new_session)
-                
-                logger.info(f"Created new session {new_session.id} for track {track_id}")
-                return str(new_session.id)
-                
-            except Exception as e:
-                logger.error(f"Failed to create session: {e}")
-                return str(uuid.uuid4())  # Временный session_id для обработки ошибок
-        else:
-            # Для гостей создаем временный session_id
+        """Создает новую чат-сессию или возвращает существующую"""
+
+        if not db:
             temp_session_id = str(uuid.uuid4())
-            logger.info(f"Created guest session {temp_session_id}")
+            logger.info(f"Created temp session {temp_session_id}")
             return temp_session_id
+
+        try:
+            user_uuid = uuid.UUID(user_id.replace("guest_", ""))
+        except ValueError:
+            logger.error(f"Invalid user_id format: {user_id}")
+            return str(uuid.uuid4())
+
+        try:
+            track_uuid = uuid.UUID(track_id)
+        except Exception:
+            track_uuid = None
+
+        if track_uuid:
+            existing_session = await self.repo.get_active_session(user_uuid, track_uuid, db)
+            if existing_session:
+                logger.info(f"Found existing session {existing_session.id} for track {track_id}")
+                return str(existing_session.id)
+
+        new_session = await self.repo.create_session(
+            user_uuid,
+            track_uuid,
+            session_name or f"Planning Session {datetime.utcnow().strftime('%d.%m %H:%M')}",
+            db,
+        )
+
+        logger.info(f"Created new session {new_session.id} for track {track_id}")
+        return str(new_session.id)
 
     async def create_or_get_chat(self, session_id: str, chat_name: str = None, chat_type: str = "planning", db: AsyncSession = None, user_id: str = None) -> str:
         """Создает новый чат или возвращает активный чат для сессии определенного типа"""
         
-        is_guest = user_id and user_id.startswith("guest_")
-        
-        # Для зарегистрированных пользователей ищем существующий чат КОНКРЕТНОГО ТИПА
-        if not is_guest and db:
-            try:
-                session_uuid = uuid.UUID(session_id)
-                
-                # Ищем последний активный чат в сессии указанного типа
-                result = await db.execute(
-                    select(Chat).where(
-                        and_(
-                            Chat.session_id == session_uuid,
-                            Chat.chat_type == chat_type,
-                            Chat.status == "active"
-                        )
-                    ).order_by(desc(Chat.created_at))
-                )
-                existing_chat = result.scalar_one_or_none()
-                
-                if existing_chat:
-                    chat_id = str(existing_chat.id)
-                    # Обновляем активный чат только если это основной тип планирования
-                    if chat_type == "planning":
-                        self.active_chats[session_id] = chat_id
-                    logger.info(f"Found existing {chat_type} chat {chat_id} for session {session_id}")
-                    return chat_id
-                
-                # Создаем новый чат указанного типа
-                new_chat = Chat(
-                    session_id=session_uuid,
-                    chat_name=chat_name or f"{chat_type.title()} Chat {datetime.utcnow().strftime('%H:%M')}",
-                    chat_type=chat_type,
-                    status="active"
-                )
-                db.add(new_chat)
-                await db.commit()
-                await db.refresh(new_chat)
-                
-                chat_id = str(new_chat.id)
-                # Обновляем активный чат только если это основной тип планирования
+        if not db:
+            if chat_type == "planning" and session_id in self.active_chats:
+                return self.active_chats[session_id]
+            temp_chat_id = str(uuid.uuid4())
+            if chat_type == "planning":
+                self.active_chats[session_id] = temp_chat_id
+            logger.info(f"Created temporary {chat_type} chat {temp_chat_id} for session {session_id}")
+            return temp_chat_id
+
+        try:
+            session_uuid = uuid.UUID(session_id)
+        except ValueError as e:
+            logger.warning(f"Invalid session_id UUID format: {session_id}, error: {e}")
+            temp_chat_id = str(uuid.uuid4())
+            if chat_type == "planning":
+                self.active_chats[session_id] = temp_chat_id
+            return temp_chat_id
+
+        try:
+            existing_chat = await self.repo.get_active_chat(session_uuid, chat_type, db)
+            if existing_chat:
+                chat_id = str(existing_chat.id)
                 if chat_type == "planning":
                     self.active_chats[session_id] = chat_id
-                
-                logger.info(f"Created new {chat_type} chat {chat_id} for session {session_id}")
+                logger.info(f"Found existing {chat_type} chat {chat_id} for session {session_id}")
                 return chat_id
-                
-            except ValueError as e:
-                logger.warning(f"Invalid session_id UUID format: {session_id}, error: {e}")
-                # Продолжаем как гостевой пользователь
-                pass
-            except Exception as e:
-                logger.error(f"Failed to create chat: {e}")
-                # Продолжаем как гостевой пользователь
-                pass
-        
-        # Для гостевых пользователей или при ошибках создаем временный chat_id
-        # Проверяем есть ли уже активный чат для planning типа
-        if chat_type == "planning" and session_id in self.active_chats:
-            return self.active_chats[session_id]
-        
-        temp_chat_id = str(uuid.uuid4())
-        if chat_type == "planning":
-            self.active_chats[session_id] = temp_chat_id
-            # Для гостей также сохраняем постоянное соответствие
-            if is_guest or not db:
-                self.guest_session_chats[session_id] = temp_chat_id
-        logger.info(f"Created temporary {chat_type} chat {temp_chat_id} for session {session_id}")
-        return temp_chat_id
+
+            new_chat = await self.repo.create_chat(
+                session_uuid,
+                chat_name or f"{chat_type.title()} Chat {datetime.utcnow().strftime('%H:%M')}",
+                chat_type,
+                db,
+            )
+
+            chat_id = str(new_chat.id)
+            if chat_type == "planning":
+                self.active_chats[session_id] = chat_id
+
+            logger.info(f"Created new {chat_type} chat {chat_id} for session {session_id}")
+            return chat_id
+
+        except Exception as e:
+            logger.error(f"Failed to create chat: {e}")
+            temp_chat_id = str(uuid.uuid4())
+            if chat_type == "planning":
+                self.active_chats[session_id] = temp_chat_id
+            return temp_chat_id
 
     async def restore_chat_history(self, session_id: str, chat_id: str, user_id: str, db: AsyncSession = None) -> List[dict]:
         """Восстанавливает историю чата в временной последовательности"""
@@ -185,27 +154,13 @@ class ChatManager:
             user_uuid = uuid.UUID(user_id)
             
             # Проверяем права доступа к чату
-            result = await db.execute(
-                select(ChatSession).where(
-                    and_(
-                        ChatSession.id == session_uuid,
-                        ChatSession.user_id == user_uuid
-                    )
-                )
-            )
-            session = result.scalar_one_or_none()
+            session = await self.repo.get_session_by_id(session_uuid, user_uuid, db)
             
             if not session:
                 logger.warning(f"User {user_id} has no access to session {session_id}")
                 return []
             
-            # Получаем историю сообщений в хронологическом порядке
-            messages_result = await db.execute(
-                select(ChatMessage).where(
-                    ChatMessage.chat_id == chat_uuid
-                ).order_by(asc(ChatMessage.timestamp))
-            )
-            messages = messages_result.scalars().all()
+            messages = await self.repo.get_chat_messages(chat_uuid, db)
             
             # Формируем список сообщений для фронтенда
             chat_history = []
@@ -307,10 +262,7 @@ class ChatManager:
             if not is_guest and db:
                 try:
                     chat_uuid = uuid.UUID(chat_id)
-                    result = await db.execute(
-                        select(Chat).where(Chat.id == chat_uuid)
-                    )
-                    chat = result.scalar_one_or_none()
+                    chat = await self.repo.get_chat_by_id(chat_uuid, db)
                     
                     if chat:
                         chat_info = {
@@ -391,17 +343,17 @@ class ChatManager:
                     "is_welcome": True
                 }
                 
-                # Сохраняем приветственное сообщение в БД
-                if db and not user_id.startswith("guest_"):
-                    await self._save_ai_message_to_db(chat_id, result["content"], openai_service.model, result.get("tokens_used"), db)
+                if db:
+                    await self._save_ai_message_to_db(
+                        chat_id,
+                        result["content"],
+                        openai_service.model,
+                        result.get("tokens_used"),
+                        db,
+                    )
                     logger.info(f"Welcome message saved to DB for chat_id: {chat_id}")
                 else:
-                    # Для гостевых пользователей сохраняем в памяти
-                    if user_id.startswith("guest_"):
-                        self._save_message_to_guest_history(chat_id, "assistant", result["content"])
-                        logger.info(f"Welcome message saved to guest history for chat_id: {chat_id}")
-                    else:
-                        logger.info(f"Welcome message not saved to DB (no DB): chat_id: {chat_id}")
+                    logger.info(f"Welcome message not saved: no database session")
                 
                 # НЕ отправляем через WebSocket, чтобы избежать дублирования
                 # Frontend получает welcome message через HTTP API и отображает в специальном стиле
@@ -482,12 +434,10 @@ class ChatManager:
                 await self.send_message(session_id, error_response)
                 return
 
-            # Сохраняем сообщение пользователя в БД
-            if db and not is_guest:
+            if db:
                 await self._save_user_message_to_db(chat_id, message, message_type, db)
-            elif is_guest:
-                # Для гостей сохраняем в памяти
-                self._save_message_to_guest_history(chat_id, "user", message)
+            else:
+                logger.info("No database session provided, user message not saved")
 
             # Получаем контекст трека и историю чата для AI
             track_context = await self._get_track_context(session_id, db) if db else ""
@@ -514,12 +464,10 @@ class ChatManager:
                 ai_response = ai_result["content"]
                 tokens_used = ai_result.get("tokens_used", 0)
 
-                # Сохраняем ответ AI в БД
-                if db and not is_guest:
+                if db:
                     await self._save_ai_message_to_db(chat_id, ai_response, openai_service.model, tokens_used, db)
-                elif is_guest:
-                    # Для гостей сохраняем в памяти
-                    self._save_message_to_guest_history(chat_id, "assistant", ai_response)
+                else:
+                    logger.info("No database session provided, AI response not saved")
 
                 # Формируем ответ для WebSocket
                 response_message = {
@@ -599,13 +547,6 @@ class ChatManager:
     async def _get_chat_history(self, chat_id: str, db: AsyncSession, limit: int = 50) -> List[dict]:
         """Получает историю чата для AI (все сообщения в хронологическом порядке)"""
         try:
-            # Проверяем есть ли история в памяти для гостевых чатов
-            if chat_id in self.guest_chat_history:
-                history = self.guest_chat_history[chat_id][-limit:]  # Последние limit сообщений
-                logger.info(f"Retrieved {len(history)} messages from guest chat {chat_id} for AI context")
-                return history
-            
-            # Для гостевых пользователей или временных чатов возвращаем пустую историю
             if not db:
                 logger.info(f"No database session provided for chat {chat_id}, returning empty history")
                 return []
@@ -614,21 +555,10 @@ class ChatManager:
             try:
                 chat_uuid = uuid.UUID(chat_id)
             except ValueError:
-                logger.warning(f"Invalid chat_id UUID format: {chat_id}, checking guest history")
-                # Возможно это временный chat_id для гостя
-                if chat_id in self.guest_chat_history:
-                    history = self.guest_chat_history[chat_id][-limit:]
-                    logger.info(f"Retrieved {len(history)} messages from guest chat {chat_id}")
-                    return history
+                logger.warning(f"Invalid chat_id UUID format: {chat_id}")
                 return []
             
-            # Получаем ВСЕ сообщения из чата в хронологическом порядке
-            result = await db.execute(
-                select(ChatMessage).where(
-                    ChatMessage.chat_id == chat_uuid
-                ).order_by(ChatMessage.timestamp.asc()).limit(limit)  # ← Сортируем по возрастанию времени
-            )
-            messages = result.scalars().all()
+            messages = await self.repo.get_chat_messages(chat_uuid, db, limit)
             
             # Формируем историю для AI в правильном формате
             history = []
@@ -656,12 +586,8 @@ class ChatManager:
     async def _save_user_message_to_db(self, chat_id: str, message: str, message_type: str, db: AsyncSession):
         """Сохраняет сообщение пользователя в БД"""
         try:
-            # Сначала пытаемся сохранить в память для гостевых чатов
-            self._save_message_to_guest_history(chat_id, "user", message)
-            
-            # Проверяем валидность UUID и наличие БД
             if not db:
-                logger.info(f"No database session provided, message saved only to guest history")
+                logger.info(f"No database session provided, message not saved")
                 return
                 
             try:
@@ -670,16 +596,7 @@ class ChatManager:
                 logger.info(f"Invalid chat_id UUID format: {chat_id}, message saved only to guest history")
                 return
             
-            user_message = ChatMessage(
-                chat_id=chat_uuid,
-                sender_type="user",
-                message_content=message,
-                message_type=message_type,
-                timestamp=datetime.utcnow()
-            )
-            
-            db.add(user_message)
-            await db.commit()
+            await self.repo.save_user_message(chat_uuid, message, message_type, db)
             logger.info(f"Saved user message to chat {chat_id}")
             
         except Exception as e:
@@ -688,32 +605,17 @@ class ChatManager:
     async def _save_ai_message_to_db(self, chat_id: str, message: str, model: str, tokens_used: int, db: AsyncSession):
         """Сохраняет сообщение AI в БД"""
         try:
-            # Сначала пытаемся сохранить в память для гостевых чатов
-            self._save_message_to_guest_history(chat_id, "assistant", message)
-            
-            # Проверяем валидность UUID и наличие БД
             if not db:
-                logger.info(f"No database session provided, AI message saved only to guest history")
+                logger.info(f"No database session provided, AI message not saved")
                 return
                 
             try:
                 chat_uuid = uuid.UUID(chat_id)
             except ValueError:
-                logger.info(f"Invalid chat_id UUID format: {chat_id}, AI message saved only to guest history")
+                logger.info(f"Invalid chat_id UUID format: {chat_id}")
                 return
             
-            ai_message = ChatMessage(
-                chat_id=chat_uuid,
-                sender_type="ai",
-                message_content=message,
-                message_type="text",
-                ai_model_used=model,
-                tokens_used=tokens_used,
-                timestamp=datetime.utcnow()
-            )
-            
-            db.add(ai_message)
-            await db.commit()
+            await self.repo.save_ai_message(chat_uuid, message, model, tokens_used, db)
             logger.info(f"Saved AI message to chat {chat_id}: model={model}, tokens={tokens_used}, content_length={len(message)}")
             
         except Exception as e:
@@ -743,10 +645,26 @@ class ChatManager:
             self.guest_chat_history[chat_id] = self.guest_chat_history[chat_id][-100:]
         
         logger.debug(f"Saved {sender_type} message to guest history for chat {chat_id}")
+        self._save_guest_history()
     
     def _get_guest_chat_history(self, chat_id: str) -> List[dict]:
         """Получает историю гостевого чата из памяти"""
         return self.guest_chat_history.get(chat_id, [])
+
+    def _load_guest_history(self):
+        if os.path.exists(self.history_file):
+            try:
+                with open(self.history_file, "r", encoding="utf-8") as f:
+                    self.guest_chat_history = json.load(f)
+            except Exception:
+                self.guest_chat_history = {}
+
+    def _save_guest_history(self):
+        try:
+            with open(self.history_file, "w", encoding="utf-8") as f:
+                json.dump(self.guest_chat_history, f)
+        except Exception:
+            pass
 
     async def broadcast_to_session(self, session_id: str, message: dict):
         """Отправляет сообщение всем подключениям в сессии"""
@@ -783,25 +701,19 @@ class ChatManager:
             
             # Получаем историю чата для извлечения плана
             is_guest = user_id.startswith("guest_")
-            
-            if is_guest or not db:
-                # Для гостей получаем из памяти
-                chat_history = self._get_guest_chat_history(chat_id)
-                # Ищем последнее AI сообщение с планом
-                course_plan = ""
-                for msg in reversed(chat_history):
-                    if msg.get("sender_type") == "ai" or msg.get("role") == "assistant":
-                        course_plan = msg["content"]
-                        break
+
+            if db:
+                chat_history = await self._get_chat_history(chat_id, db, limit=50)
             else:
-                # Для зарегистрированных пользователей получаем из БД
-                chat_history_db = await self._get_chat_history(chat_id, db, limit=50)
-                # Ищем последнее AI сообщение с планом
-                course_plan = ""
-                for msg in reversed(chat_history_db):
-                    if msg.get("sender_type") == "ai" or msg.get("role") == "assistant":
-                        course_plan = msg["content"]
-                        break
+                # Если нет доступа к БД (редкий случай), читаем из гостевой истории
+                chat_history = self._get_guest_chat_history(chat_id)
+
+            # Ищем последнее AI сообщение с планом
+            course_plan = ""
+            for msg in reversed(chat_history):
+                if msg.get("sender_type") == "ai" or msg.get("role") == "assistant":
+                    course_plan = msg["content"]
+                    break
             
             if not course_plan.strip():
                 error_message = {
@@ -884,17 +796,16 @@ class ChatManager:
                     
                     finalization_message += "\n📚 Модули курса созданы и готовы к изучению!"
                     
-                    if db and not is_guest:
+                    if db:
                         await self._save_ai_message_to_db(
-                            chat_id, 
-                            finalization_message, 
-                            openai_service.model, 
-                            result.get("tokens_used", 0), 
-                            db
+                            chat_id,
+                            finalization_message,
+                            openai_service.model,
+                            result.get("tokens_used", 0),
+                            db,
                         )
-                    elif is_guest:
-                        # Для гостей сохраняем в памяти
-                        self._save_message_to_guest_history(chat_id, "assistant", finalization_message)
+                    else:
+                        logger.info("No database session provided, finalization message not saved")
                     
                     # Отправляем результат через WebSocket
                     response_message = {
@@ -943,6 +854,79 @@ class ChatManager:
         except Exception as e:
             logger.error(f"Error finalizing course plan: {str(e)}")
             return {"success": False, "error": str(e)}
+
+    async def process_planning_chat_message(self,
+                                            session_id: str,
+                                            user_message: str,
+                                            user_id: str,
+                                            track_context: str = "",
+                                            chat_id: str = None,
+                                            db: AsyncSession = None) -> Dict:
+        """Обрабатывает сообщение пользователя в чате планирования через HTTP"""
+
+        try:
+            chat_id = chat_id or await self.create_or_get_chat(
+                session_id,
+                "Course Planning",
+                "planning",
+                db,
+                user_id,
+            )
+
+            is_guest = user_id.startswith("guest_")
+
+            if db:
+                await self._save_user_message_to_db(chat_id, user_message, "text", db)
+            else:
+                logger.info("No database session provided, user message not saved")
+
+            if not track_context:
+                track_context = await self._get_track_context(session_id, db) if db else ""
+
+            chat_history = await self._get_chat_history(chat_id, db) if (db or is_guest) else []
+
+            messages = chat_history + [{"role": "user", "content": user_message}]
+
+            openai_service = await create_openai_service(user_id)
+            if not openai_service:
+                return {"success": False, "error": "AI сервис недоступен", "chat_id": chat_id}
+
+            ai_result = await openai_service.generate_chat_response(
+                messages=messages,
+                context=track_context,
+            )
+
+            if ai_result["success"]:
+                ai_response = ai_result["content"]
+                tokens_used = ai_result.get("tokens_used", 0)
+
+                if db:
+                    await self._save_ai_message_to_db(
+                        chat_id,
+                        ai_response,
+                        openai_service.model,
+                        tokens_used,
+                        db,
+                    )
+                else:
+                    logger.info("No database session provided, AI response not saved")
+
+                return {
+                    "success": True,
+                    "response": ai_response,
+                    "chat_id": chat_id,
+                    "tokens_used": tokens_used,
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": ai_result.get("error", "AI ошибка"),
+                    "chat_id": chat_id,
+                }
+
+        except Exception as e:
+            logger.error(f"Error processing planning chat message: {str(e)}")
+            return {"success": False, "error": str(e), "chat_id": chat_id}
 
     async def restore_existing_chat_if_any(self, session_id: str, user_id: str, db: AsyncSession = None) -> Dict:
         """Восстанавливает существующий диалог если пользователь возвращается на страницу"""
@@ -1014,16 +998,7 @@ class ChatManager:
                     "history": []
                 }
             
-            result = await db.execute(
-                select(Chat).where(
-                    and_(
-                        Chat.session_id == session_uuid,
-                        Chat.chat_type == "planning",
-                        Chat.status == "active"
-                    )
-                ).order_by(desc(Chat.created_at))
-            )
-            existing_chat = result.scalar_one_or_none()
+            existing_chat = await self.repo.get_active_chat(session_uuid, "planning", db)
             
             if existing_chat:
                 chat_id = str(existing_chat.id)
@@ -1448,17 +1423,7 @@ class ChatManager:
             except ValueError:
                 return {"success": False, "error": "Invalid UUID format"}
             
-            # Ищем чат модуля в БД
-            result = await db.execute(
-                select(Chat).where(
-                    and_(
-                        Chat.session_id == session_uuid,
-                        Chat.chat_type == "module_learning",
-                        Chat.status == "active"
-                    )
-                ).order_by(desc(Chat.created_at))
-            )
-            module_chat = result.scalar_one_or_none()
+            module_chat = await self.repo.get_active_chat(session_uuid, "module_learning", db)
             
             if module_chat:
                 chat_id = str(module_chat.id)

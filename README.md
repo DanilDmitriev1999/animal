@@ -29,3 +29,7 @@
 - [docs/backend.md](docs/backend.md)
 - [docs/frontend.md](docs/frontend.md)
 - [docs/database.md](docs/database.md)
+
+`/api/ai/generate-plan` can accept `session_id` and `chat_id` to save the plan as a chat message.
+Guest chat messages are now stored in the database just like regular users.
+`/api/ai/chat-response` now uses chat history and returns `chat_id` for continued conversations.

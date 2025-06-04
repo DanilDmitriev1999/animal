@@ -99,19 +99,16 @@ async def get_current_user(
     except JWTError:
         raise credentials_exception
     
-    # Если это гостевой пользователь
     if user_id.startswith("guest_"):
-        # Создаем временный объект гостевого пользователя
-        guest_user = User(
-            id=uuid.uuid4(),
-            email=f"guest_{uuid.uuid4().hex[:8]}@guest.com",
-            password_hash="",
-            first_name="Гость",
-            last_name="Пользователь",
-            role=UserRole.STUDENT,
-            is_active=True
-        )
-        return guest_user
+        try:
+            guest_uuid = uuid.UUID(user_id.replace("guest_", ""))
+            result = await db.execute(select(User).where(User.id == guest_uuid))
+            user = result.scalar_one_or_none()
+            if user:
+                return user
+        except Exception:
+            pass
+        raise credentials_exception
     
     # Для обычных пользователей ищем в БД
     result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
@@ -140,17 +137,13 @@ async def get_current_user_optional(
     
     # Если это гостевой пользователь
     if user_id.startswith("guest_"):
-        # Создаем временный объект гостевого пользователя
-        guest_user = User(
-            id=uuid.uuid4(),
-            email=f"guest_{uuid.uuid4().hex[:8]}@guest.com",
-            password_hash="",
-            first_name="Гость",
-            last_name="Пользователь",
-            role=UserRole.STUDENT,
-            is_active=True
-        )
-        return guest_user
+        try:
+            guest_uuid = uuid.UUID(user_id.replace("guest_", ""))
+            result = await db.execute(select(User).where(User.id == guest_uuid))
+            user = result.scalar_one_or_none()
+            return user
+        except Exception:
+            return None
     
     # Для обычных пользователей ищем в БД
     try:
@@ -273,12 +266,27 @@ async def login_user(user_credentials: UserLogin, db: AsyncSession = Depends(get
     )
 
 @router.post("/guest-login", response_model=GuestToken)
-async def guest_login():
+async def guest_login(db: AsyncSession = Depends(get_db)):
     """Вход в гостевом режиме без регистрации"""
     
     # Создаем временный ID для гостя
-    guest_id = f"guest_{uuid.uuid4().hex}"
+    guest_uuid = uuid.uuid4()
+    guest_id = f"guest_{guest_uuid.hex}"
     
+    # Создаем запись пользователя в БД
+    hashed_password = get_password_hash(uuid.uuid4().hex)
+    new_user = User(
+        id=guest_uuid,
+        email=f"guest_{guest_uuid.hex[:8]}@guest.com",
+        password_hash=hashed_password,
+        first_name="Гость",
+        last_name="Пользователь",
+        role=UserRole.STUDENT,
+        is_active=True,
+    )
+    db.add(new_user)
+    await db.commit()
+
     # Создаем JWT токен для гостя
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     access_token = create_access_token(
@@ -288,7 +296,7 @@ async def guest_login():
     # Формируем гостевого пользователя
     guest_user = GuestUserResponse(
         id=guest_id,
-        email=f"guest_{uuid.uuid4().hex[:8]}@guest.com",
+        email=new_user.email,
         first_name="Гость",
         last_name="Пользователь",
         role="student",

@@ -23,22 +23,27 @@ router = APIRouter()
 class GeneratePlanRequest(BaseModel):
     track_id: str
     user_expectations: str
+    session_id: Optional[str] = None
+    chat_id: Optional[str] = None
 
 class GeneratePlanResponse(BaseModel):
     success: bool
     plan: Optional[Dict[str, Any]] = None
+    chat_id: Optional[str] = None
     error: Optional[str] = None
     tokens_used: Optional[int] = None
 
 class ChatRequest(BaseModel):
     message: str
     session_id: str
+    chat_id: Optional[str] = None
     track_context: Optional[str] = None
 
 class ChatResponse(BaseModel):
     success: bool
     response: Optional[str] = None
     error: Optional[str] = None
+    chat_id: Optional[str] = None
     tokens_used: Optional[int] = None
 
 class WelcomeMessageRequest(BaseModel):
@@ -234,13 +239,30 @@ async def generate_plan(
         
         # Получаем OpenAI сервис
         openai_service = await get_openai_service(current_user, db)
-        
-        # Генерируем план курса
+
+        chat_id = None
+        chat_history = None
+
+        if request.session_id:
+            chat_id = request.chat_id or await chat_manager.create_or_get_chat(
+                request.session_id,
+                "Course Planning",
+                "planning",
+                db,
+                str(current_user.id) if current_user.id else "guest"
+            )
+            chat_history = await chat_manager._get_chat_history(
+                chat_id,
+                db
+            )
+
+        # Генерируем план курса с учетом истории
         result = await openai_service.generate_course_plan(
             skill_area=track.skill_area,
             user_expectations=request.user_expectations,
             difficulty_level=track.difficulty_level.value if hasattr(track.difficulty_level, 'value') else str(track.difficulty_level),
-            duration_hours=track.estimated_duration_hours
+            duration_hours=track.estimated_duration_hours,
+            chat_history=chat_history
         )
         
         if result["success"]:
@@ -255,22 +277,43 @@ async def generate_plan(
                     await db.commit()
                     logger.info(f"Updated track {track.id} with AI generated plan")
                 
+                if chat_id:
+                    await chat_manager._save_ai_message_to_db(
+                        chat_id,
+                        result["content"],
+                        openai_service.model,
+                        result.get("tokens_used", 0),
+                        db,
+                    )
+
                 return GeneratePlanResponse(
                     success=True,
                     plan=plan_data,
+                    chat_id=chat_id,
                     tokens_used=result.get("tokens_used")
                 )
             except json.JSONDecodeError:
                 # Если не удалось парсить как JSON, возвращаем как raw response
                 logger.warning("Failed to parse AI response as JSON")
+                if chat_id:
+                    await chat_manager._save_ai_message_to_db(
+                        chat_id,
+                        result["content"],
+                        openai_service.model,
+                        result.get("tokens_used", 0),
+                        db,
+                    )
+
                 return GeneratePlanResponse(
                     success=True,
                     plan={"raw_response": result["content"]},
+                    chat_id=chat_id,
                     tokens_used=result.get("tokens_used")
                 )
         else:
             return GeneratePlanResponse(
                 success=False,
+                chat_id=chat_id,
                 error=result.get("error", "Unknown error")
             )
             
@@ -280,6 +323,7 @@ async def generate_plan(
         logger.error(f"Error generating plan: {str(e)}")
         return GeneratePlanResponse(
             success=False,
+            chat_id=chat_id,
             error=str(e)
         )
 
@@ -287,12 +331,11 @@ async def generate_plan(
 async def chat_response(
     request: ChatRequest,
     current_user: User = Depends(get_current_user_optional),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """Получение ответа AI в чате планирования"""
-    
+    """Ответ AI в чате планирования с учетом истории"""
+
     try:
-        # Создаем гостевого пользователя если не аутентифицирован
         if current_user is None:
             from models.database_models import User
             current_user = User(
@@ -300,76 +343,32 @@ async def chat_response(
                 email="guest_user",
                 first_name="Guest",
                 last_name="User",
-                role="guest"
+                role="guest",
             )
-            
-        # Получаем OpenAI сервис
-        openai_service = await get_openai_service(current_user, db)
-        
-        # Формируем историю сообщений
-        messages = [{"role": "user", "content": request.message}]
-        
-        # Генерируем ответ
-        result = await openai_service.generate_chat_response(
-            messages=messages,
-            context=request.track_context
+
+        result = await chat_manager.process_planning_chat_message(
+            session_id=request.session_id,
+            user_message=request.message,
+            user_id=str(current_user.id) if current_user.id else "guest",
+            track_context=request.track_context or "",
+            chat_id=request.chat_id,
+            db=db,
         )
-        
+
         if result["success"]:
-            # Сохраняем сообщения в БД (только для зарегистрированных пользователей)
-            if current_user and current_user.id and not current_user.email.startswith("guest_"):
-                try:
-                    import uuid
-                    session_uuid = uuid.UUID(request.session_id)
-                    
-                    # Проверяем что сессия существует
-                    from models.database_models import ChatSession, ChatMessage
-                    session_result = await db.execute(
-                        select(ChatSession).where(
-                            ChatSession.id == session_uuid,
-                            ChatSession.user_id == current_user.id
-                        )
-                    )
-                    session = session_result.scalar_one_or_none()
-                    
-                    if session:
-                        # Сохраняем сообщение пользователя
-                        user_message = ChatMessage(
-                            session_id=session.id,
-                            sender_type="user",
-                            message_content=request.message,
-                            message_type="text"
-                        )
-                        db.add(user_message)
-                        
-                        # Сохраняем ответ AI
-                        ai_message = ChatMessage(
-                            session_id=session.id,
-                            sender_type="ai",
-                            message_content=result["content"],
-                            message_type="text",
-                            ai_model_used=openai_service.model
-                        )
-                        db.add(ai_message)
-                        
-                        await db.commit()
-                        logger.info(f"Saved chat messages for session: {request.session_id}")
-                except Exception as e:
-                    logger.warning(f"Failed to save chat messages: {str(e)}")
-            else:
-                logger.info(f"Skipping DB save for guest user or session: {request.session_id}")
-            
             return ChatResponse(
                 success=True,
-                response=result["content"],
-                tokens_used=result.get("tokens_used")
+                response=result["response"],
+                chat_id=result.get("chat_id"),
+                tokens_used=result.get("tokens_used"),
             )
         else:
             return ChatResponse(
                 success=False,
-                error=result.get("error", "Unknown error")
+                error=result.get("error", "Unknown error"),
+                chat_id=result.get("chat_id"),
             )
-            
+
     except HTTPException:
         raise
     except Exception as e:
@@ -540,7 +539,7 @@ async def generate_welcome_message(
             difficulty_level=request.difficulty_level,
             duration_hours=request.duration_hours,
             user_id=request.user_id,
-            db=db if current_user and not current_user.email.startswith("guest_") else None
+            db=db
         )
         
         if result["success"]:
@@ -583,7 +582,7 @@ async def finalize_course_plan(
             skill_area=request.skill_area,
             track_id=request.track_id,
             user_id=request.user_id,
-            db=db if current_user and not current_user.email.startswith("guest_") else None
+            db=db
         )
         
         if result["success"]:
@@ -745,7 +744,7 @@ async def start_module_learning(
             module_id=request.module_id,
             user_id=request.user_id,
             module_summary=module_summary,
-            db=db if not is_guest else None
+            db=db
         )
         
         if not chat_result["success"]:
@@ -826,7 +825,7 @@ async def module_chat_response(
             user_message=request.message,
             user_id=request.user_id,
             track_context=context_info,
-            db=db if current_user and not current_user.email.startswith("guest_") else None
+            db=db
         )
         
         if result["success"]:
@@ -867,7 +866,7 @@ async def complete_module(
             track_id=request.track_id,
             module_id=request.module_id,
             user_id=request.user_id,
-            db=db if current_user and not current_user.email.startswith("guest_") else None
+            db=db
         )
         
         return result
@@ -891,7 +890,7 @@ async def get_module_chat_history(
             track_id=request.track_id,
             module_id=request.module_id,
             user_id=request.user_id,
-            db=db if current_user and not current_user.email.startswith("guest_") else None
+            db=db
         )
         
         if result["success"]:

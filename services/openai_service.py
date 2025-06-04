@@ -81,12 +81,13 @@ class OpenAIService:
                 "error": str(e)
             }
 
-    async def generate_course_plan(self, 
-                                 skill_area: str, 
+    async def generate_course_plan(self,
+                                 skill_area: str,
                                  user_expectations: str,
                                  difficulty_level: str,
-                                 duration_hours: int) -> Dict[str, Any]:
-        """Генерирует план курса на основе пожеланий пользователя"""
+                                 duration_hours: int,
+                                 chat_history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
+        """Генерирует план курса с учетом опциональной истории диалога"""
 
         prompt = f"""
         Создай детальный план курса для изучения навыка: {skill_area}
@@ -108,12 +109,22 @@ class OpenAIService:
         """
 
         try:
+            messages = [
+                {"role": "system", "content": "Ты экспертный куратор образовательных курсов. Создаешь детальные планы обучения."}
+            ]
+
+            if chat_history:
+                for msg in chat_history[-10:]:
+                    role = msg.get("sender_type") or msg.get("role") or "user"
+                    if role == "ai":
+                        role = "assistant"
+                    messages.append({"role": role, "content": msg.get("content")})
+
+            messages.append({"role": "user", "content": prompt})
+
             response = await self.client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {"role": "system", "content": "Ты экспертный куратор образовательных курсов. Создаешь детальные планы обучения."},
-                    {"role": "user", "content": prompt}
-                ],
+                messages=messages,
                 temperature=0.7,
                 max_tokens=2000
             )
