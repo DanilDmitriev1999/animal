@@ -1,7 +1,7 @@
 import uuid
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, desc, asc
+from sqlalchemy import select, and_, desc
 
 from models.database_models import ChatSession, Chat, ChatMessage
 
@@ -72,10 +72,15 @@ class ChatRepository:
         return result.scalar_one_or_none()
 
     async def get_chat_messages(self, chat_uuid: uuid.UUID, db: AsyncSession, limit: int = 50) -> List[ChatMessage]:
+        """Returns the most recent chat messages in chronological order."""
         result = await db.execute(
-            select(ChatMessage).where(ChatMessage.chat_id == chat_uuid).order_by(asc(ChatMessage.timestamp)).limit(limit)
+            select(ChatMessage)
+            .where(ChatMessage.chat_id == chat_uuid)
+            .order_by(desc(ChatMessage.timestamp))
+            .limit(limit)
         )
-        return result.scalars().all()
+        rows = result.scalars().all()
+        return list(reversed(rows))
 
     async def save_user_message(self, chat_uuid: uuid.UUID, message: str, message_type: str, db: AsyncSession):
         new_msg = ChatMessage(
