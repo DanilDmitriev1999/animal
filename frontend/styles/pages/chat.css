@@ -285,16 +285,16 @@
 
 .message--user, .chat-message.user {
   align-self: flex-end;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
-  color: white;
+  background: var(--chat-user-bg);
+  color: var(--chat-user-text);
   border-bottom-right-radius: var(--radius-sm);
 }
 
 .message--ai, .chat-message.ai {
   align-self: flex-start;
-  background: white;
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
+  background: var(--chat-ai-bg);
+  border: 1px solid var(--chat-ai-border);
+  color: var(--chat-ai-text);
   border-bottom-left-radius: var(--radius-sm);
 }
 
