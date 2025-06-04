@@ -7,6 +7,7 @@
   --color-primary: rgba(33, 128, 141, 1);
   --color-primary-hover: rgba(29, 116, 128, 1);
   --color-primary-active: rgba(26, 104, 115, 1);
+  --color-primary-dark: rgba(23, 92, 102, 1);
   --color-secondary: rgba(94, 82, 64, 0.12);
   --color-secondary-hover: rgba(94, 82, 64, 0.2);
   --color-secondary-active: rgba(94, 82, 64, 0.25);
@@ -123,6 +124,7 @@
     --color-primary: rgba(50, 184, 198, 1);
     --color-primary-hover: rgba(45, 166, 178, 1);
     --color-primary-active: rgba(41, 150, 161, 1);
+    --color-primary-dark: rgba(37, 135, 145, 1);
     --color-secondary: rgba(119, 124, 124, 0.15);
     --color-secondary-hover: rgba(119, 124, 124, 0.25);
     --color-secondary-active: rgba(119, 124, 124, 0.3);
@@ -171,6 +173,7 @@
   --color-primary: rgba(50, 184, 198, 1);
   --color-primary-hover: rgba(45, 166, 178, 1);
   --color-primary-active: rgba(41, 150, 161, 1);
+  --color-primary-dark: rgba(37, 135, 145, 1);
   --color-secondary: rgba(119, 124, 124, 0.15);
   --color-secondary-hover: rgba(119, 124, 124, 0.25);
   --color-secondary-active: rgba(119, 124, 124, 0.3);
@@ -217,6 +220,7 @@
   --color-primary: rgba(33, 128, 141, 1);
   --color-primary-hover: rgba(29, 116, 128, 1);
   --color-primary-active: rgba(26, 104, 115, 1);
+  --color-primary-dark: rgba(23, 92, 102, 1);
   --color-secondary: rgba(94, 82, 64, 0.12);
   --color-secondary-hover: rgba(94, 82, 64, 0.2);
   --color-secondary-active: rgba(94, 82, 64, 0.25);
