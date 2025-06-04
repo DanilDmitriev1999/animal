@@ -1277,12 +1277,13 @@
 
 /* Special Message Types */
 .message--welcome, .chat-message.welcome {
-  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
-  border: 1px solid #60a5fa;
-  color: #1e40af;
+  background: var(--chat-welcome-bg);
+  border-left: 4px solid var(--color-primary);
+  border-radius: var(--radius-lg);
+  color: var(--color-text) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   max-width: 90%;
   align-self: center;
-  text-align: center;
   position: relative;
 }
 
@@ -1294,9 +1295,11 @@
 }
 
 .message--success, .chat-message.finalization {
-  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
-  border: 1px solid #22c55e;
-  color: #166534;
+  background: var(--chat-success-bg);
+  border-left: 4px solid var(--color-success);
+  border-radius: var(--radius-lg);
+  color: var(--color-text) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   max-width: 90%;
   align-self: center;
 }
@@ -1310,9 +1313,10 @@
 }
 
 .message--error, .chat-message.error {
-  background: linear-gradient(135deg, #fef2f2, #fecaca);
-  border: 1px solid #ef4444;
-  color: #991b1b;
+  background: var(--chat-error-bg);
+  border-left: 4px solid var(--chat-error-border);
+  border-radius: var(--radius-lg);
+  color: var(--chat-error-text) !important;
   max-width: 90%;
   align-self: center;
 }
@@ -1322,10 +1326,9 @@
   font-size: var(--font-size-lg);
   margin-bottom: var(--space-8);
   display: block;
-  text-align: center;
 }
 
 .message--error .message-content {
-  text-align: center;
   font-weight: var(--font-weight-medium);
-} 
+  color: var(--chat-error-text) !important;
+}
