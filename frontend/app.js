@@ -873,8 +873,8 @@ function initializeChatPlanning(track) {
     
     // Заполняем информацию о треке
     document.getElementById('chat-track-title').textContent = track.title;
-    document.getElementById('chat-track-level').textContent = getDifficultyText(track.difficulty);
-    document.getElementById('chat-track-duration').textContent = track.duration;
+    document.getElementById('chat-track-level').textContent = getDifficultyText(track.difficulty_level);
+    document.getElementById('chat-track-duration').textContent = track.duration_hours;
 
     // Сбрасываем состояние планирования
     resetPlanningProgress();
@@ -895,9 +895,9 @@ function initializeChatPlanning(track) {
     
     showPage('chat-page');
     
-    // Автоматически запрашиваем базовый план от AI
+    // Автоматически запрашиваем приветственное сообщение с планом от AI
     setTimeout(() => {
-        generateInitialCoursePlan(track);
+        sendWelcomeMessage();
     }, 1000);
 }
 
@@ -972,147 +972,6 @@ function animatePreparationProgress() {
     window.preparationInterval = interval;
 }
 
-async function generateInitialCoursePlan(track) {
-    try {
-        updateAIStatus('thinking', 'AI создает базовый план курса...');
-        
-        // Формируем структурированный промпт на основе данных анкеты
-        const planningPrompt = `Вы - опытный консультант по образованию и планированию курсов. Ваша задача - создать персональный план обучения на основе заполненной анкеты.
-
-ДАННЫЕ ИЗ АНКЕТЫ ПОЛЬЗОВАТЕЛЯ:
-📚 Название курса: "${track.title}"
-🎯 Область изучения: ${track.skill_area || track.title}  
-📊 Уровень подготовки: ${getDifficultyText(track.difficulty)}
-⏱️ Планируемое время: ${track.duration} часов
-💭 Ожидания и цели: ${track.expectations || 'Не указаны конкретные ожидания'}
-
-${track.description ? `📝 Детальное описание области: ${track.description}` : ''}
-
-ИНСТРУКЦИЯ ДЛЯ СОЗДАНИЯ ПЛАНА:
-Создайте приветственное сообщение и базовый план обучения. В вашем ответе:
-
-1. Поприветствуйте пользователя и подтвердите понимание его целей
-2. Проанализируйте представленные данные 
-3. Предложите первичную структуру курса (3-5 основных модулей)
-4. Задайте 2-3 уточняющих вопроса для детализации плана
-5. Покажите энтузиазм и готовность помочь
-
-Стиль общения: дружелюбный, профессиональный, мотивирующий.
-Отвечайте на русском языке.
-
-Начинайте ваш ответ сейчас:`;
-
-        console.log('🤖 Sending structured course planning request to:', '/api/ai/chat-response');
-        console.log('📝 Track data:', {
-            title: track.title,
-            skill_area: track.skill_area,
-            difficulty: track.difficulty,
-            duration: track.duration,
-            expectations: track.expectations?.substring(0, 100) + '...'
-        });
-
-        const response = await apiRequest('/api/ai/chat-response', {
-            method: 'POST',
-            body: JSON.stringify({
-                message: planningPrompt,
-                session_id: currentSessionId,
-                track_context: `${track.skill_area || track.title} - ${getDifficultyText(track.difficulty)} - ${track.duration}ч`
-            })
-        });
-
-        console.log('✅ Received AI response:', response);
-
-        // Очищаем interval анимации
-        if (window.preparationInterval) {
-            clearInterval(window.preparationInterval);
-        }
-        
-        if (response && response.success && response.response) {
-            // Скрываем preparation screen
-            hidePlanPreparationScreen();
-            
-            const aiMessage = {
-                sender: 'ai',
-                content: response.response,
-                timestamp: new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'}),
-                tokens_used: response.tokens_used,
-                model_used: response.model_used,
-                chat_id: response.chat_id || currentChatId,
-                isWelcome: true
-            };
-
-            // Обновляем currentChatId если получен новый
-            if (response.chat_id && !currentChatId) {
-                currentChatId = response.chat_id;
-            }
-
-            chatMessages.push(aiMessage);
-            loadChatMessages();
-            saveChatMessages();
-            
-            updateAIStatus('ready', 'План готов! Можно обсуждать детали');
-            updatePlanningProgress(0, 'completed'); // Обсуждение целей завершено
-            
-            // Обновляем чаты UI
-            updateChatsUI();
-            
-        } else {
-            // Более детальная обработка ошибок
-            let errorMessage = 'Неизвестная ошибка AI сервиса';
-            
-            if (response && !response.success) {
-                errorMessage = response.error || 'AI сервис вернул ошибку без описания';
-            } else if (response && response.success && !response.response) {
-                errorMessage = 'AI сервис вернул пустой ответ';
-            } else if (!response) {
-                errorMessage = 'Не получен ответ от сервера';
-            }
-            
-            console.error('❌ AI service error details:', {
-                response,
-                errorMessage,
-                hasResponse: !!response,
-                responseSuccess: response?.success,
-                hasResponseText: !!response?.response
-            });
-            
-            throw new Error(errorMessage);
-        }
-        
-    } catch (error) {
-        console.error('Error generating initial course plan:', error);
-        
-        // Скрываем preparation screen
-        hidePlanPreparationScreen();
-        
-        updateAIStatus('error', 'Ошибка создания плана');
-        
-        const errorMessage = {
-            sender: 'ai',
-            content: `❌ **Ошибка создания плана курса**
-
-Извините, произошла ошибка при генерации плана: ${error.message}
-
-**Что можно сделать:**
-- Проверьте подключение к интернету
-- Убедитесь, что backend сервер запущен 
-- Попробуйте написать мне вручную о ваших целях обучения
-- Обновите страницу и попробуйте снова
-
-Я готов помочь вам создать план курса в ручном режиме!`,
-            timestamp: new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'}),
-            isError: true
-        };
-
-        chatMessages.push(errorMessage);
-        loadChatMessages();
-        
-        // Восстанавливаем статус через 3 секунды
-        setTimeout(() => {
-            updateAIStatus('ready', 'Готов к планированию');
-        }, 3000);
-    }
-}
 
 function hidePlanPreparationScreen() {
     const preparationScreen = document.querySelector('.plan-preparation-screen');
@@ -1213,8 +1072,9 @@ function restoreChatId() {
 
 async function sendWelcomeMessage() {
     if (!currentTrack) return;
-    
+
     try {
+        updateAIStatus('thinking', 'AI создает базовый план курса...');
         const response = await apiRequest('/api/ai/welcome-message', {
             method: 'POST',
             body: JSON.stringify({
@@ -1245,6 +1105,10 @@ async function sendWelcomeMessage() {
             loadChatMessages();
             saveChatMessages();
             showFinalizeButton();
+
+            hidePlanPreparationScreen();
+            updateAIStatus('ready', 'План готов! Можно обсуждать детали');
+            updatePlanningProgress(0, 'completed');
             
             // Обновляем currentChatId если получили его от сервера
             if (response.chat_id || response.message.chat_id) {
@@ -1272,6 +1136,8 @@ async function sendWelcomeMessage() {
         loadChatMessages();
         saveChatMessages();
         showFinalizeButton();
+        hidePlanPreparationScreen();
+        updateAIStatus('error', 'Ошибка создания плана');
     }
 }
 
