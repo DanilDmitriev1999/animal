@@ -23,10 +23,13 @@ router = APIRouter()
 class GeneratePlanRequest(BaseModel):
     track_id: str
     user_expectations: str
+    session_id: Optional[str] = None
+    chat_id: Optional[str] = None
 
 class GeneratePlanResponse(BaseModel):
     success: bool
     plan: Optional[Dict[str, Any]] = None
+    chat_id: Optional[str] = None
     error: Optional[str] = None
     tokens_used: Optional[int] = None
 
@@ -234,13 +237,31 @@ async def generate_plan(
         
         # Получаем OpenAI сервис
         openai_service = await get_openai_service(current_user, db)
-        
-        # Генерируем план курса
+
+        chat_id = None
+        chat_history = None
+
+        if request.session_id:
+            is_guest = current_user.email.startswith("guest_")
+            chat_id = request.chat_id or await chat_manager.create_or_get_chat(
+                request.session_id,
+                "Course Planning",
+                "planning",
+                db if not is_guest else None,
+                str(current_user.id) if current_user.id else "guest"
+            )
+            chat_history = await chat_manager._get_chat_history(
+                chat_id,
+                db if not is_guest else None
+            )
+
+        # Генерируем план курса с учетом истории
         result = await openai_service.generate_course_plan(
             skill_area=track.skill_area,
             user_expectations=request.user_expectations,
             difficulty_level=track.difficulty_level.value if hasattr(track.difficulty_level, 'value') else str(track.difficulty_level),
-            duration_hours=track.estimated_duration_hours
+            duration_hours=track.estimated_duration_hours,
+            chat_history=chat_history
         )
         
         if result["success"]:
@@ -255,22 +276,49 @@ async def generate_plan(
                     await db.commit()
                     logger.info(f"Updated track {track.id} with AI generated plan")
                 
+                if chat_id:
+                    if not current_user.email.startswith("guest_"):
+                        await chat_manager._save_ai_message_to_db(
+                            chat_id,
+                            result["content"],
+                            openai_service.model,
+                            result.get("tokens_used", 0),
+                            db
+                        )
+                    else:
+                        chat_manager._save_message_to_guest_history(chat_id, "assistant", result["content"])
+
                 return GeneratePlanResponse(
                     success=True,
                     plan=plan_data,
+                    chat_id=chat_id,
                     tokens_used=result.get("tokens_used")
                 )
             except json.JSONDecodeError:
                 # Если не удалось парсить как JSON, возвращаем как raw response
                 logger.warning("Failed to parse AI response as JSON")
+                if chat_id:
+                    if not current_user.email.startswith("guest_"):
+                        await chat_manager._save_ai_message_to_db(
+                            chat_id,
+                            result["content"],
+                            openai_service.model,
+                            result.get("tokens_used", 0),
+                            db
+                        )
+                    else:
+                        chat_manager._save_message_to_guest_history(chat_id, "assistant", result["content"])
+
                 return GeneratePlanResponse(
                     success=True,
                     plan={"raw_response": result["content"]},
+                    chat_id=chat_id,
                     tokens_used=result.get("tokens_used")
                 )
         else:
             return GeneratePlanResponse(
                 success=False,
+                chat_id=chat_id,
                 error=result.get("error", "Unknown error")
             )
             
@@ -280,6 +328,7 @@ async def generate_plan(
         logger.error(f"Error generating plan: {str(e)}")
         return GeneratePlanResponse(
             success=False,
+            chat_id=chat_id,
             error=str(e)
         )
 

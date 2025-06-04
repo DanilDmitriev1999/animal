@@ -67,7 +67,8 @@ make dev
 - `PUT /chats/{chat_id}/status` – изменить статус чата.
 
 ### AI сервис (`/api/ai`)
-- `POST /generate-plan` – генерация плана курса по введённым параметрам.
+- `POST /generate-plan` – генерация плана курса по введённым параметрам. Может
+  принимать `session_id` и `chat_id` для учёта истории диалога.
 - `POST /chat-response` – ответ AI в чате планирования.
 - `POST /generate-lesson` – генерация материалов урока.
 - `GET /user-config` – параметры AI пользователя.

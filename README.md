@@ -29,4 +29,6 @@
 - [docs/backend.md](docs/backend.md)
 - [docs/frontend.md](docs/frontend.md)
 - [docs/database.md](docs/database.md)
-\nGuest chat history is stored in guest_history.json for session recovery.
+
+`/api/ai/generate-plan` can accept `session_id` and `chat_id` to save the plan as a chat message.
+Guest chat history is stored in guest_history.json for session recovery.
