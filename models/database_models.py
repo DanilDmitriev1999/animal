@@ -90,6 +90,11 @@ class LearningTrack(Base):
     chat_sessions = relationship("ChatSession", back_populates="track")
     modules = relationship("CourseModule", back_populates="track")
 
+
+class ChatType(PyEnum):
+    TRACK_MANAGER = "track_manager"
+    LECTURE_AGENT = "lecture_agent"
+
 class ChatSession(Base):
     __tablename__ = "chat_sessions"
 
@@ -112,7 +117,7 @@ class Chat(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     session_id = Column(UUID(as_uuid=True), ForeignKey("chat_sessions.id"), nullable=False)
     chat_name = Column(String(255))
-    chat_type = Column(String(50), default="planning")  # planning, discussion, finalization
+    chat_type = Column(Enum(ChatType), default=ChatType.TRACK_MANAGER)
     status = Column(String(20), default="active")
     ai_context = Column(JSON)  # Контекст для AI (настройки, предыдущий контекст)
     created_at = Column(DateTime, default=datetime.utcnow)

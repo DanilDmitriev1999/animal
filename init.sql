@@ -44,7 +44,7 @@ BEGIN
                 id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
                 session_id UUID NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
                 chat_name VARCHAR(255),
-                chat_type VARCHAR(50) DEFAULT 'planning',
+                chat_type VARCHAR(50) DEFAULT 'track_manager',
                 status VARCHAR(20) DEFAULT 'active',
                 ai_context JSONB,
                 created_at TIMESTAMP DEFAULT NOW(),
@@ -72,7 +72,7 @@ BEGIN
         SELECT DISTINCT 
             session_id, 
             'Migrated Chat',
-            'planning',
+            'track_manager',
             'active',
             MIN(timestamp),
             MAX(timestamp)

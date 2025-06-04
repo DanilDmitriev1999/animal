@@ -12,6 +12,7 @@ import uuid
 
 from models.database_models import User, LearningTrack, Chat, ChatSession
 from services.chat_repository import ChatRepository
+from models.database_models import ChatType
 from services.openai_service import create_openai_service
 
 logger = logging.getLogger(__name__)
@@ -88,14 +89,14 @@ class ChatManager:
         logger.info(f"Created new session {new_session.id} for track {track_id}")
         return str(new_session.id)
 
-    async def create_or_get_chat(self, session_id: str, chat_name: str = None, chat_type: str = "planning", db: AsyncSession = None, user_id: str = None) -> str:
+    async def create_or_get_chat(self, session_id: str, chat_name: str = None, chat_type: ChatType = ChatType.TRACK_MANAGER, db: AsyncSession = None, user_id: str = None) -> str:
         """Создает новый чат или возвращает активный чат для сессии определенного типа"""
         
         if not db:
-            if chat_type == "planning" and session_id in self.active_chats:
+            if chat_type == ChatType.TRACK_MANAGER and session_id in self.active_chats:
                 return self.active_chats[session_id]
             temp_chat_id = str(uuid.uuid4())
-            if chat_type == "planning":
+            if chat_type == ChatType.TRACK_MANAGER:
                 self.active_chats[session_id] = temp_chat_id
             logger.info(f"Created temporary {chat_type} chat {temp_chat_id} for session {session_id}")
             return temp_chat_id
@@ -105,7 +106,7 @@ class ChatManager:
         except ValueError as e:
             logger.warning(f"Invalid session_id UUID format: {session_id}, error: {e}")
             temp_chat_id = str(uuid.uuid4())
-            if chat_type == "planning":
+            if chat_type == ChatType.TRACK_MANAGER:
                 self.active_chats[session_id] = temp_chat_id
             return temp_chat_id
 
@@ -113,7 +114,7 @@ class ChatManager:
             existing_chat = await self.repo.get_active_chat(session_uuid, chat_type, db)
             if existing_chat:
                 chat_id = str(existing_chat.id)
-                if chat_type == "planning":
+                if chat_type == ChatType.TRACK_MANAGER:
                     self.active_chats[session_id] = chat_id
                 logger.info(f"Found existing {chat_type} chat {chat_id} for session {session_id}")
                 return chat_id
@@ -126,7 +127,7 @@ class ChatManager:
             )
 
             chat_id = str(new_chat.id)
-            if chat_type == "planning":
+            if chat_type == ChatType.TRACK_MANAGER:
                 self.active_chats[session_id] = chat_id
 
             logger.info(f"Created new {chat_type} chat {chat_id} for session {session_id}")
@@ -135,7 +136,7 @@ class ChatManager:
         except Exception as e:
             logger.error(f"Failed to create chat: {e}")
             temp_chat_id = str(uuid.uuid4())
-            if chat_type == "planning":
+            if chat_type == ChatType.TRACK_MANAGER:
                 self.active_chats[session_id] = temp_chat_id
             return temp_chat_id
 
@@ -310,9 +311,9 @@ class ChatManager:
                                  db: AsyncSession = None) -> Dict:
         """Отправляет приветственное сообщение с планом курса"""
         try:
-            # Используем единый тип "planning" для ВСЕГО диалога
+            # Используем единый тип TRACK_MANAGER для всего диалога
             # Включая welcome, обсуждение, финализацию - всё в одном чате
-            chat_id = await self.create_or_get_chat(session_id, "Course Planning", "planning", db, user_id)
+            chat_id = await self.create_or_get_chat(session_id, "Course Planning", ChatType.TRACK_MANAGER, db, user_id)
             
             # Получаем OpenAI сервис
             openai_service = await create_openai_service(user_id)
@@ -390,8 +391,8 @@ class ChatManager:
         try:
             # Получаем или создаем chat_id
             if not chat_id:
-                # Используем тот же единый тип "planning" для всего диалога
-                chat_id = await self.create_or_get_chat(session_id, "Course Planning", "planning", db, user_id)
+                # Используем тот же единый тип планирования для всего диалога
+                chat_id = await self.create_or_get_chat(session_id, "Course Planning", ChatType.TRACK_MANAGER, db, user_id)
             
             # Проверяем если это гостевой пользователь
             is_guest = user_id.startswith("guest_")
@@ -692,10 +693,10 @@ class ChatManager:
         try:
             # Используем тот же единый чат планирования
             chat_id = await self.create_or_get_chat(
-                session_id, 
-                "Course Planning", 
-                "planning", 
-                db, 
+                session_id,
+                "Course Planning",
+                ChatType.TRACK_MANAGER,
+                db,
                 user_id
             )
             
@@ -868,7 +869,7 @@ class ChatManager:
             chat_id = chat_id or await self.create_or_get_chat(
                 session_id,
                 "Course Planning",
-                "planning",
+                ChatType.TRACK_MANAGER,
                 db,
                 user_id,
             )
@@ -971,7 +972,7 @@ class ChatManager:
                         "chat_info": {
                             "chat_id": active_chat_id,
                             "chat_name": "Guest Planning Chat",
-                            "chat_type": "planning",
+                            "chat_type": ChatType.TRACK_MANAGER.value,
                             "created_at": datetime.utcnow().isoformat()
                         },
                         "history": frontend_history,
@@ -998,7 +999,7 @@ class ChatManager:
                     "history": []
                 }
             
-            existing_chat = await self.repo.get_active_chat(session_uuid, "planning", db)
+            existing_chat = await self.repo.get_active_chat(session_uuid, ChatType.TRACK_MANAGER, db)
             
             if existing_chat:
                 chat_id = str(existing_chat.id)
@@ -1057,7 +1058,7 @@ class ChatManager:
             
             # Создаем название чата для модуля
             chat_name = f"Модуль: {module_id}"
-            chat_type = "module_learning"
+            chat_type = ChatType.LECTURE_AGENT
             
             # Создаем чат
             if not is_guest and db:
@@ -1423,7 +1424,7 @@ class ChatManager:
             except ValueError:
                 return {"success": False, "error": "Invalid UUID format"}
             
-            module_chat = await self.repo.get_active_chat(session_uuid, "module_learning", db)
+            module_chat = await self.repo.get_active_chat(session_uuid, ChatType.LECTURE_AGENT, db)
             
             if module_chat:
                 chat_id = str(module_chat.id)

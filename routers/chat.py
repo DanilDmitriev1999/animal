@@ -11,7 +11,7 @@ import uuid
 import logging
 
 from models.database import get_db
-from models.database_models import User, LearningTrack, ChatSession, Chat, ChatMessage
+from models.database_models import User, LearningTrack, ChatSession, Chat, ChatMessage, ChatType
 from routers.auth import get_current_user
 from services.chat_service import chat_manager
 
@@ -35,13 +35,13 @@ class ChatSessionResponse(BaseModel):
 class ChatCreate(BaseModel):
     session_id: str
     chat_name: Optional[str] = None
-    chat_type: str = "planning"
+    chat_type: ChatType = ChatType.TRACK_MANAGER
 
 class ChatResponse(BaseModel):
     id: str
     session_id: str
     chat_name: str
-    chat_type: str
+    chat_type: ChatType
     status: str
     created_at: datetime
     updated_at: datetime
