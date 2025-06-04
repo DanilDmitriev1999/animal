@@ -701,25 +701,19 @@ class ChatManager:
             
             # Получаем историю чата для извлечения плана
             is_guest = user_id.startswith("guest_")
-            
-            if is_guest or not db:
-                # Для гостей получаем из памяти
-                chat_history = self._get_guest_chat_history(chat_id)
-                # Ищем последнее AI сообщение с планом
-                course_plan = ""
-                for msg in reversed(chat_history):
-                    if msg.get("sender_type") == "ai" or msg.get("role") == "assistant":
-                        course_plan = msg["content"]
-                        break
+
+            if db:
+                chat_history = await self._get_chat_history(chat_id, db, limit=50)
             else:
-                # Для зарегистрированных пользователей получаем из БД
-                chat_history_db = await self._get_chat_history(chat_id, db, limit=50)
-                # Ищем последнее AI сообщение с планом
-                course_plan = ""
-                for msg in reversed(chat_history_db):
-                    if msg.get("sender_type") == "ai" or msg.get("role") == "assistant":
-                        course_plan = msg["content"]
-                        break
+                # Если нет доступа к БД (редкий случай), читаем из гостевой истории
+                chat_history = self._get_guest_chat_history(chat_id)
+
+            # Ищем последнее AI сообщение с планом
+            course_plan = ""
+            for msg in reversed(chat_history):
+                if msg.get("sender_type") == "ai" or msg.get("role") == "assistant":
+                    course_plan = msg["content"]
+                    break
             
             if not course_plan.strip():
                 error_message = {
