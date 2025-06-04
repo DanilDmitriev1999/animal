@@ -893,6 +893,79 @@ class ChatManager:
             logger.error(f"Error finalizing course plan: {str(e)}")
             return {"success": False, "error": str(e)}
 
+    async def process_planning_chat_message(self,
+                                            session_id: str,
+                                            user_message: str,
+                                            user_id: str,
+                                            track_context: str = "",
+                                            chat_id: str = None,
+                                            db: AsyncSession = None) -> Dict:
+        """Обрабатывает сообщение пользователя в чате планирования через HTTP"""
+
+        try:
+            chat_id = chat_id or await self.create_or_get_chat(
+                session_id,
+                "Course Planning",
+                "planning",
+                db,
+                user_id,
+            )
+
+            is_guest = user_id.startswith("guest_")
+
+            if db and not is_guest:
+                await self._save_user_message_to_db(chat_id, user_message, "text", db)
+            else:
+                self._save_message_to_guest_history(chat_id, "user", user_message)
+
+            if not track_context:
+                track_context = await self._get_track_context(session_id, db) if db else ""
+
+            chat_history = await self._get_chat_history(chat_id, db) if (db or is_guest) else []
+
+            messages = chat_history + [{"role": "user", "content": user_message}]
+
+            openai_service = await create_openai_service(user_id)
+            if not openai_service:
+                return {"success": False, "error": "AI сервис недоступен", "chat_id": chat_id}
+
+            ai_result = await openai_service.generate_chat_response(
+                messages=messages,
+                context=track_context,
+            )
+
+            if ai_result["success"]:
+                ai_response = ai_result["content"]
+                tokens_used = ai_result.get("tokens_used", 0)
+
+                if db and not is_guest:
+                    await self._save_ai_message_to_db(
+                        chat_id,
+                        ai_response,
+                        openai_service.model,
+                        tokens_used,
+                        db,
+                    )
+                else:
+                    self._save_message_to_guest_history(chat_id, "assistant", ai_response)
+
+                return {
+                    "success": True,
+                    "response": ai_response,
+                    "chat_id": chat_id,
+                    "tokens_used": tokens_used,
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": ai_result.get("error", "AI ошибка"),
+                    "chat_id": chat_id,
+                }
+
+        except Exception as e:
+            logger.error(f"Error processing planning chat message: {str(e)}")
+            return {"success": False, "error": str(e), "chat_id": chat_id}
+
     async def restore_existing_chat_if_any(self, session_id: str, user_id: str, db: AsyncSession = None) -> Dict:
         """Восстанавливает существующий диалог если пользователь возвращается на страницу"""
         try:

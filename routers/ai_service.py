@@ -36,12 +36,14 @@ class GeneratePlanResponse(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     session_id: str
+    chat_id: Optional[str] = None
     track_context: Optional[str] = None
 
 class ChatResponse(BaseModel):
     success: bool
     response: Optional[str] = None
     error: Optional[str] = None
+    chat_id: Optional[str] = None
     tokens_used: Optional[int] = None
 
 class WelcomeMessageRequest(BaseModel):
@@ -336,12 +338,11 @@ async def generate_plan(
 async def chat_response(
     request: ChatRequest,
     current_user: User = Depends(get_current_user_optional),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """Получение ответа AI в чате планирования"""
-    
+    """Ответ AI в чате планирования с учетом истории"""
+
     try:
-        # Создаем гостевого пользователя если не аутентифицирован
         if current_user is None:
             from models.database_models import User
             current_user = User(
@@ -349,76 +350,34 @@ async def chat_response(
                 email="guest_user",
                 first_name="Guest",
                 last_name="User",
-                role="guest"
+                role="guest",
             )
-            
-        # Получаем OpenAI сервис
-        openai_service = await get_openai_service(current_user, db)
-        
-        # Формируем историю сообщений
-        messages = [{"role": "user", "content": request.message}]
-        
-        # Генерируем ответ
-        result = await openai_service.generate_chat_response(
-            messages=messages,
-            context=request.track_context
+
+        is_guest = current_user.email.startswith("guest_")
+
+        result = await chat_manager.process_planning_chat_message(
+            session_id=request.session_id,
+            user_message=request.message,
+            user_id=str(current_user.id) if current_user.id else "guest",
+            track_context=request.track_context or "",
+            chat_id=request.chat_id,
+            db=db if not is_guest else None,
         )
-        
+
         if result["success"]:
-            # Сохраняем сообщения в БД (только для зарегистрированных пользователей)
-            if current_user and current_user.id and not current_user.email.startswith("guest_"):
-                try:
-                    import uuid
-                    session_uuid = uuid.UUID(request.session_id)
-                    
-                    # Проверяем что сессия существует
-                    from models.database_models import ChatSession, ChatMessage
-                    session_result = await db.execute(
-                        select(ChatSession).where(
-                            ChatSession.id == session_uuid,
-                            ChatSession.user_id == current_user.id
-                        )
-                    )
-                    session = session_result.scalar_one_or_none()
-                    
-                    if session:
-                        # Сохраняем сообщение пользователя
-                        user_message = ChatMessage(
-                            session_id=session.id,
-                            sender_type="user",
-                            message_content=request.message,
-                            message_type="text"
-                        )
-                        db.add(user_message)
-                        
-                        # Сохраняем ответ AI
-                        ai_message = ChatMessage(
-                            session_id=session.id,
-                            sender_type="ai",
-                            message_content=result["content"],
-                            message_type="text",
-                            ai_model_used=openai_service.model
-                        )
-                        db.add(ai_message)
-                        
-                        await db.commit()
-                        logger.info(f"Saved chat messages for session: {request.session_id}")
-                except Exception as e:
-                    logger.warning(f"Failed to save chat messages: {str(e)}")
-            else:
-                logger.info(f"Skipping DB save for guest user or session: {request.session_id}")
-            
             return ChatResponse(
                 success=True,
-                response=result["content"],
-                tokens_used=result.get("tokens_used")
+                response=result["response"],
+                chat_id=result.get("chat_id"),
+                tokens_used=result.get("tokens_used"),
             )
         else:
             return ChatResponse(
                 success=False,
-                error=result.get("error", "Unknown error")
+                error=result.get("error", "Unknown error"),
+                chat_id=result.get("chat_id"),
             )
-            
+
     except HTTPException:
         raise
     except Exception as e:

@@ -32,3 +32,4 @@
 
 `/api/ai/generate-plan` can accept `session_id` and `chat_id` to save the plan as a chat message.
 Guest chat history is stored in guest_history.json for session recovery.
+`/api/ai/chat-response` now uses chat history and returns `chat_id` for continued conversations.
