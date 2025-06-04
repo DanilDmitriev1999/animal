@@ -1415,6 +1415,29 @@ function hideAIThinking() {
     }
 }
 
+function showModuleAIThinking() {
+    const chatContainer = document.getElementById('module-chat-messages');
+    if (!chatContainer) return;
+    const thinkingDiv = document.createElement('div');
+    thinkingDiv.className = 'ai-thinking';
+    thinkingDiv.id = 'module-ai-thinking';
+    thinkingDiv.innerHTML = `
+        <div class="thinking-dots">
+            <div class="thinking-dot"></div>
+            <div class="thinking-dot"></div>
+            <div class="thinking-dot"></div>
+        </div>
+        <span>AI думает...</span>
+    `;
+    chatContainer.appendChild(thinkingDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function hideModuleAIThinking() {
+    const thinkingDiv = document.getElementById('module-ai-thinking');
+    if (thinkingDiv) thinkingDiv.remove();
+}
+
 async function handleChatMessageViaAPI(message) {
     try {
         updateAIStatus('thinking', 'AI генерирует ответ...');
@@ -3489,19 +3512,8 @@ async function handleModuleChatMessage(e) {
     input.value = '';
     loadModuleChatMessages();
     
-    // Показываем индикатор загрузки
-    const loadingMessage = {
-        sender: 'ai',
-        content: '⏳ Обрабатываю ваш вопрос...',
-        timestamp: new Date().toLocaleTimeString('ru-RU', {
-            hour: '2-digit', 
-            minute: '2-digit'
-        }),
-        isLoading: true
-    };
-    
-    moduleChatMessages.push(loadingMessage);
-    loadModuleChatMessages();
+    // Показываем индикатор работы модели
+    showModuleAIThinking();
     
     try {
         // Подготавливаем ID в правильном формате
@@ -3529,8 +3541,8 @@ async function handleModuleChatMessage(e) {
             })
         });
         
-        // Убираем сообщение загрузки
-        moduleChatMessages.pop();
+        // Скрываем индикатор работы модели
+        hideModuleAIThinking();
         
         if (response.success) {
             // Добавляем ответ AI
@@ -3554,8 +3566,8 @@ async function handleModuleChatMessage(e) {
         }
         
     } catch (error) {
-        // Убираем сообщение загрузки
-        moduleChatMessages.pop();
+        // Скрываем индикатор работы модели
+        hideModuleAIThinking();
         
         console.error('Error sending module chat message:', error);
         const errorMessage = {
@@ -3596,7 +3608,7 @@ function loadModuleChatMessages() {
             sender = message.sender_type;
         }
         
-        messageDiv.className = `module-chat-message ${sender}`;
+        messageDiv.className = `chat-message ${sender}`;
         
         if (message.isConspect) messageDiv.classList.add('conspect');
         if (message.isLoading) messageDiv.classList.add('loading');

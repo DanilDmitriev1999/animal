@@ -28,6 +28,9 @@
 /* Карточки, статусы, прогресс-бары */
 @import './components/cards.css';
 
+/* Общий вид чат-виджета */
+@import './components/chat-widget.css';
+
 /* Модальные окна и всплывающие элементы */
 @import './components/modals.css';
 

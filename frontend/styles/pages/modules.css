@@ -1,4 +1,5 @@
 /* ===== СТИЛИ ДЛЯ ДЕТАЛЬНОГО ПРОСМОТРА МОДУЛЯ ===== */
+@import '../components/chat-widget.css';
 
 /* Breadcrumb навигация */
 .module-breadcrumb {
@@ -517,93 +518,6 @@
   background: var(--color-success);
 }
 
-/* Сообщения чата модуля */
-.module-chat-messages {
-  flex: 1;
-  padding: var(--space-24);
-  overflow-y: auto;
-  background: var(--color-background);
-}
-
-.module-chat-message {
-  margin-bottom: var(--space-16);
-  animation: none !important;
-  transform: none !important;
-}
-
-.module-chat-message.user {
-  text-align: right;
-}
-
-.module-chat-message.ai {
-  text-align: left;
-}
-
-.module-chat-message .message-content {
-  padding: var(--space-12);
-  border-radius: var(--border-radius-md);
-  line-height: 1.5;
-  animation: none !important;
-  transform: none !important;
-}
-
-.module-chat-message.user .message-content {
-  background: var(--color-primary);
-  color: white;
-  border-bottom-right-radius: var(--radius-4);
-}
-
-.module-chat-message.ai .message-content {
-  background: var(--color-surface);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-  border-bottom-left-radius: var(--radius-4);
-}
-
-.module-chat-message .message-meta {
-  margin-top: var(--space-4);
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-}
-
-/* Ввод сообщения */
-.module-chat-input {
-  background: var(--color-surface);
-  border-top: 1px solid var(--color-border);
-  padding: var(--space-16) var(--space-24);
-}
-
-.chat-input-container {
-  display: flex;
-  gap: var(--space-12);
-  align-items: flex-end;
-  margin-bottom: var(--space-12);
-}
-
-.chat-input-container textarea {
-  flex: 1;
-  resize: none;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-8);
-  padding: var(--space-12);
-  font-family: inherit;
-  font-size: 0.95rem;
-  line-height: 1.4;
-  max-height: 120px;
-}
-
-.chat-input-container textarea:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px var(--color-primary-light);
-}
-
-.chat-input-container button {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  white-space: nowrap;
-}
 
 /* Подсказки чата */
 .chat-hints {
@@ -662,7 +576,7 @@
   
   .conspect-container,
   .learning-chat-header,
-  .module-chat-input {
+  .chat-input {
     padding: var(--space-16);
   }
   
@@ -698,13 +612,13 @@
 }
 
 /* Стили для сообщений с ошибками */
-.module-chat-message.error .message-content {
+.chat-message.error .message-content {
   background: var(--color-error-light);
   border-color: var(--color-error);
   color: var(--color-error);
 }
 
-.module-chat-message.loading .message-content {
+.chat-message.loading .message-content {
   background: var(--color-background);
   border: 1px dashed var(--color-border);
   color: var(--color-text-secondary);
@@ -714,7 +628,7 @@
   transform: none !important;
 }
 
-.module-chat-message.conspect .message-content {
+.chat-message.conspect .message-content {
   background: var(--color-primary-light);
   border-color: var(--color-primary);
   border-width: 2px;
@@ -951,7 +865,7 @@ button .thinking-spinner {
 }
 
 /* Более специфичный селектор для спиннера в сообщениях чата */
-.module-chat-message .ai-thinking-container .thinking-spinner {
+.chat-message .ai-thinking-container .thinking-spinner {
   width: 20px;
   height: 20px;
   border: 2px solid var(--color-border, #e2e8f0);
@@ -966,7 +880,7 @@ button .thinking-spinner {
 }
 
 /* Убеждаемся что контейнер ИИ не вращается */
-.module-chat-message .ai-thinking-container {
+.chat-message .ai-thinking-container {
   display: flex;
   align-items: center;
   gap: var(--space-12, 12px);
@@ -977,7 +891,7 @@ button .thinking-spinner {
 }
 
 /* Убеждаемся что текст не вращается */
-.module-chat-message .ai-thinking-container .thinking-text {
+.chat-message .ai-thinking-container .thinking-text {
   display: flex;
   flex-direction: column;
   gap: var(--space-4, 4px);
@@ -996,18 +910,18 @@ button .thinking-spinner {
 }
 
 /* CSS сброс анимаций для предотвращения нежелательного вращения */
-.module-chat-message *:not(.thinking-spinner) {
+.chat-message *:not(.thinking-spinner) {
   animation: none !important;
   transform: none !important;
 }
 
 /* Исключение только для спиннера - разрешаем ему вращаться */
-.module-chat-message .thinking-spinner {
+.chat-message .thinking-spinner {
   animation: thinking-spin 1s linear infinite !important;
 }
 
 /* Дополнительные меры предосторожности */
-.module-chat-message .message-content *:not(.thinking-spinner) {
+.chat-message .message-content *:not(.thinking-spinner) {
   animation: none !important;
   transform: none !important;
 } 
