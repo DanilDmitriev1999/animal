@@ -2607,7 +2607,7 @@ function openHomeworkDetail(homeworkId) {
 // ... existing code ...
 
 // Функции управления чатами
-async function createNewChat(chatName, chatType = 'planning') {
+async function createNewChat(chatName, chatType = 'track_manager') {
     if (!currentSessionId) {
         console.error('No active session for creating chat');
         return null;
@@ -2697,10 +2697,8 @@ function updateChatsUI() {
 
 function getChatTypeText(chatType) {
     const types = {
-        'welcome': '👋 Приветствие',
-        'planning': '📋 Планирование', 
-        'discussion': '💬 Обсуждение',
-        'finalization': '🎯 Финализация'
+        'track_manager': '📋 План курса',
+        'lecture_agent': '📚 Модуль'
     };
     return types[chatType] || chatType;
 }
@@ -2731,7 +2729,7 @@ function createChatDialog() {
 }
 
 async function createNewChatAndSwitch(chatName) {
-    const chatId = await createNewChat(chatName, 'planning');
+    const chatId = await createNewChat(chatName, 'track_manager');
     if (chatId) {
         await switchChat(chatId);
     }

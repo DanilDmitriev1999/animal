@@ -14,6 +14,7 @@ from routers.auth import get_current_user, get_current_user_optional
 from services.openai_service import OpenAIService
 from utils.config import settings
 from services.chat_service import chat_manager
+from models.database_models import ChatType
 
 logger = logging.getLogger(__name__)
 
@@ -244,13 +245,18 @@ async def generate_plan(
         chat_history = None
 
         if request.session_id:
-            chat_id = request.chat_id or await chat_manager.create_or_get_chat(
+            chat_id = request.chat_id or await chat_manager.get_active_chat(
                 request.session_id,
-                "Course Planning",
-                "planning",
-                db,
-                str(current_user.id) if current_user.id else "guest"
+                ChatType.TRACK_MANAGER,
+                db
             )
+            if not chat_id:
+                chat_id = await chat_manager.create_chat(
+                    request.session_id,
+                    "Course Planning",
+                    ChatType.TRACK_MANAGER,
+                    db
+                )
             chat_history = await chat_manager._get_chat_history(
                 chat_id,
                 db
