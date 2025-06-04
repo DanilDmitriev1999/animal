@@ -3,14 +3,15 @@
 """
 from fastapi import WebSocket
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, desc, asc, delete
+from sqlalchemy import select, and_, desc
 from typing import Dict, List, Optional
 import json
 import logging
 from datetime import datetime
 import uuid
 
-from models.database_models import User, ChatSession, Chat, ChatMessage, LearningTrack
+from models.database_models import User, LearningTrack, Chat, ChatSession
+from services.chat_repository import ChatRepository
 from services.openai_service import create_openai_service
 
 logger = logging.getLogger(__name__)
@@ -27,6 +28,9 @@ class ChatManager:
         self.guest_chat_history: Dict[str, List[dict]] = {}
         # Словарь соответствий сессий и чатов для гостей: session_id -> chat_id
         self.guest_session_chats: Dict[str, str] = {}
+        self.history_file = "guest_history.json"
+        self._load_guest_history()
+        self.repo = ChatRepository()
     
     async def connect(self, websocket: WebSocket, session_id: str):
         """Подключение нового WebSocket"""
@@ -58,33 +62,19 @@ class ChatManager:
             try:
                 user_uuid = uuid.UUID(user_id)
                 track_uuid = uuid.UUID(track_id)
-                
-                # Ищем существующую активную сессию для трека
-                result = await db.execute(
-                    select(ChatSession).where(
-                        and_(
-                            ChatSession.user_id == user_uuid,
-                            ChatSession.track_id == track_uuid,
-                            ChatSession.status == "active"
-                        )
-                    ).order_by(desc(ChatSession.created_at))
-                )
-                existing_session = result.scalar_one_or_none()
-                
+
+                existing_session = await self.repo.get_active_session(user_uuid, track_uuid, db)
+
                 if existing_session:
                     logger.info(f"Found existing session {existing_session.id} for track {track_id}")
                     return str(existing_session.id)
-                
-                # Создаем новую сессию
-                new_session = ChatSession(
-                    user_id=user_uuid,
-                    track_id=track_uuid,
-                    session_name=session_name or f"Planning Session {datetime.utcnow().strftime('%d.%m %H:%M')}",
-                    status="active"
+
+                new_session = await self.repo.create_session(
+                    user_uuid,
+                    track_uuid,
+                    session_name or f"Planning Session {datetime.utcnow().strftime('%d.%m %H:%M')}",
+                    db,
                 )
-                db.add(new_session)
-                await db.commit()
-                await db.refresh(new_session)
                 
                 logger.info(f"Created new session {new_session.id} for track {track_id}")
                 return str(new_session.id)
@@ -108,17 +98,7 @@ class ChatManager:
             try:
                 session_uuid = uuid.UUID(session_id)
                 
-                # Ищем последний активный чат в сессии указанного типа
-                result = await db.execute(
-                    select(Chat).where(
-                        and_(
-                            Chat.session_id == session_uuid,
-                            Chat.chat_type == chat_type,
-                            Chat.status == "active"
-                        )
-                    ).order_by(desc(Chat.created_at))
-                )
-                existing_chat = result.scalar_one_or_none()
+                existing_chat = await self.repo.get_active_chat(session_uuid, chat_type, db)
                 
                 if existing_chat:
                     chat_id = str(existing_chat.id)
@@ -128,16 +108,12 @@ class ChatManager:
                     logger.info(f"Found existing {chat_type} chat {chat_id} for session {session_id}")
                     return chat_id
                 
-                # Создаем новый чат указанного типа
-                new_chat = Chat(
-                    session_id=session_uuid,
-                    chat_name=chat_name or f"{chat_type.title()} Chat {datetime.utcnow().strftime('%H:%M')}",
-                    chat_type=chat_type,
-                    status="active"
+                new_chat = await self.repo.create_chat(
+                    session_uuid,
+                    chat_name or f"{chat_type.title()} Chat {datetime.utcnow().strftime('%H:%M')}",
+                    chat_type,
+                    db,
                 )
-                db.add(new_chat)
-                await db.commit()
-                await db.refresh(new_chat)
                 
                 chat_id = str(new_chat.id)
                 # Обновляем активный чат только если это основной тип планирования
@@ -185,27 +161,13 @@ class ChatManager:
             user_uuid = uuid.UUID(user_id)
             
             # Проверяем права доступа к чату
-            result = await db.execute(
-                select(ChatSession).where(
-                    and_(
-                        ChatSession.id == session_uuid,
-                        ChatSession.user_id == user_uuid
-                    )
-                )
-            )
-            session = result.scalar_one_or_none()
+            session = await self.repo.get_session_by_id(session_uuid, user_uuid, db)
             
             if not session:
                 logger.warning(f"User {user_id} has no access to session {session_id}")
                 return []
             
-            # Получаем историю сообщений в хронологическом порядке
-            messages_result = await db.execute(
-                select(ChatMessage).where(
-                    ChatMessage.chat_id == chat_uuid
-                ).order_by(asc(ChatMessage.timestamp))
-            )
-            messages = messages_result.scalars().all()
+            messages = await self.repo.get_chat_messages(chat_uuid, db)
             
             # Формируем список сообщений для фронтенда
             chat_history = []
@@ -307,10 +269,7 @@ class ChatManager:
             if not is_guest and db:
                 try:
                     chat_uuid = uuid.UUID(chat_id)
-                    result = await db.execute(
-                        select(Chat).where(Chat.id == chat_uuid)
-                    )
-                    chat = result.scalar_one_or_none()
+                    chat = await self.repo.get_chat_by_id(chat_uuid, db)
                     
                     if chat:
                         chat_info = {
@@ -622,13 +581,7 @@ class ChatManager:
                     return history
                 return []
             
-            # Получаем ВСЕ сообщения из чата в хронологическом порядке
-            result = await db.execute(
-                select(ChatMessage).where(
-                    ChatMessage.chat_id == chat_uuid
-                ).order_by(ChatMessage.timestamp.asc()).limit(limit)  # ← Сортируем по возрастанию времени
-            )
-            messages = result.scalars().all()
+            messages = await self.repo.get_chat_messages(chat_uuid, db, limit)
             
             # Формируем историю для AI в правильном формате
             history = []
@@ -670,16 +623,7 @@ class ChatManager:
                 logger.info(f"Invalid chat_id UUID format: {chat_id}, message saved only to guest history")
                 return
             
-            user_message = ChatMessage(
-                chat_id=chat_uuid,
-                sender_type="user",
-                message_content=message,
-                message_type=message_type,
-                timestamp=datetime.utcnow()
-            )
-            
-            db.add(user_message)
-            await db.commit()
+            await self.repo.save_user_message(chat_uuid, message, message_type, db)
             logger.info(f"Saved user message to chat {chat_id}")
             
         except Exception as e:
@@ -702,18 +646,7 @@ class ChatManager:
                 logger.info(f"Invalid chat_id UUID format: {chat_id}, AI message saved only to guest history")
                 return
             
-            ai_message = ChatMessage(
-                chat_id=chat_uuid,
-                sender_type="ai",
-                message_content=message,
-                message_type="text",
-                ai_model_used=model,
-                tokens_used=tokens_used,
-                timestamp=datetime.utcnow()
-            )
-            
-            db.add(ai_message)
-            await db.commit()
+            await self.repo.save_ai_message(chat_uuid, message, model, tokens_used, db)
             logger.info(f"Saved AI message to chat {chat_id}: model={model}, tokens={tokens_used}, content_length={len(message)}")
             
         except Exception as e:
@@ -743,10 +676,26 @@ class ChatManager:
             self.guest_chat_history[chat_id] = self.guest_chat_history[chat_id][-100:]
         
         logger.debug(f"Saved {sender_type} message to guest history for chat {chat_id}")
+        self._save_guest_history()
     
     def _get_guest_chat_history(self, chat_id: str) -> List[dict]:
         """Получает историю гостевого чата из памяти"""
         return self.guest_chat_history.get(chat_id, [])
+
+    def _load_guest_history(self):
+        if os.path.exists(self.history_file):
+            try:
+                with open(self.history_file, "r", encoding="utf-8") as f:
+                    self.guest_chat_history = json.load(f)
+            except Exception:
+                self.guest_chat_history = {}
+
+    def _save_guest_history(self):
+        try:
+            with open(self.history_file, "w", encoding="utf-8") as f:
+                json.dump(self.guest_chat_history, f)
+        except Exception:
+            pass
 
     async def broadcast_to_session(self, session_id: str, message: dict):
         """Отправляет сообщение всем подключениям в сессии"""
@@ -1014,16 +963,7 @@ class ChatManager:
                     "history": []
                 }
             
-            result = await db.execute(
-                select(Chat).where(
-                    and_(
-                        Chat.session_id == session_uuid,
-                        Chat.chat_type == "planning",
-                        Chat.status == "active"
-                    )
-                ).order_by(desc(Chat.created_at))
-            )
-            existing_chat = result.scalar_one_or_none()
+            existing_chat = await self.repo.get_active_chat(session_uuid, "planning", db)
             
             if existing_chat:
                 chat_id = str(existing_chat.id)
@@ -1448,17 +1388,7 @@ class ChatManager:
             except ValueError:
                 return {"success": False, "error": "Invalid UUID format"}
             
-            # Ищем чат модуля в БД
-            result = await db.execute(
-                select(Chat).where(
-                    and_(
-                        Chat.session_id == session_uuid,
-                        Chat.chat_type == "module_learning",
-                        Chat.status == "active"
-                    )
-                ).order_by(desc(Chat.created_at))
-            )
-            module_chat = result.scalar_one_or_none()
+            module_chat = await self.repo.get_active_chat(session_uuid, "module_learning", db)
             
             if module_chat:
                 chat_id = str(module_chat.id)

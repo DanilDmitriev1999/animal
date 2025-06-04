@@ -29,3 +29,4 @@
 - [docs/backend.md](docs/backend.md)
 - [docs/frontend.md](docs/frontend.md)
 - [docs/database.md](docs/database.md)
+\nGuest chat history is stored in guest_history.json for session recovery.
