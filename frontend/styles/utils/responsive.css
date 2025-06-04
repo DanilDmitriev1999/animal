@@ -1,0 +1,78 @@
+/* Responsive Design - Mobile First */
+
+/* Mobile devices (up to 480px) */
+@media (max-width: 480px) {
+  /* Typography adjustments */
+  html {
+    font-size: 13px; /* Smaller base font size for mobile */
+  }
+  
+  /* Track card mobile adjustments */
+  .track-card-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-8);
+  }
+  
+  .track-actions-container {
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .btn--delete {
+    padding: var(--space-6) var(--space-12) !important;
+    font-size: var(--font-size-base) !important;
+  }
+}
+
+/* Tablet devices (481px to 768px) */
+@media (min-width: 481px) and (max-width: 768px) {
+  /* Adjust grid layouts for tablets */
+  .tracks-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Desktop devices (769px and up) */
+@media (min-width: 769px) {
+  /* Enhanced hover effects for desktop */
+  .card:hover {
+    transform: translateY(-2px);
+  }
+  
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+}
+
+/* Large screens (1024px and up) */
+@media (min-width: 1024px) {
+  /* Wider layouts for large screens */
+  .hero {
+    padding: 120px 0;
+  }
+  
+  .features {
+    padding: 120px 0;
+  }
+}
+
+/* Extra large screens (1280px and up) */
+@media (min-width: 1280px) {
+  /* Maximum content width */
+  .hero-content h1 {
+    font-size: 3.5rem;
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* Optimize for retina displays */
+  .graphic-element {
+    border-width: 1px;
+  }
+} 

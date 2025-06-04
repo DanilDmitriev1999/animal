@@ -1,0 +1,214 @@
+/* Modal styles */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal__content {
+  background-color: var(--color-surface);
+  border-radius: var(--radius-lg);
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: auto;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal__content--large {
+  max-width: 800px;
+}
+
+.modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-16);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal__header h3 {
+  margin: 0;
+  color: var(--color-text);
+}
+
+.modal__close {
+  background: none;
+  border: none;
+  font-size: var(--font-size-xl);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: var(--space-4);
+  border-radius: var(--radius-base);
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.modal__close:hover {
+  background-color: var(--color-secondary);
+}
+
+.modal__body {
+  padding: var(--space-16);
+}
+
+/* Lesson content modal specific styles */
+.lesson-content {
+  margin-bottom: var(--space-16);
+  max-height: 400px;
+  overflow-y: auto;
+  background-color: var(--color-secondary);
+  border-radius: var(--radius-base);
+  padding: var(--space-16);
+}
+
+.lesson-content pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: var(--color-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+}
+
+.lesson-actions {
+  display: flex;
+  gap: var(--space-8);
+  justify-content: flex-end;
+}
+
+/* Finalization success modal */
+.finalization-success {
+  text-align: center;
+}
+
+.success-stats {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-32);
+  margin-bottom: var(--space-24);
+}
+
+.stat {
+  text-align: center;
+}
+
+.stat-number {
+  font-size: var(--font-size-4xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+  line-height: 1;
+  margin-bottom: var(--space-4);
+}
+
+.stat-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.course-modules {
+  text-align: left;
+  margin-bottom: var(--space-24);
+}
+
+.course-modules h4 {
+  text-align: center;
+  margin-bottom: var(--space-16);
+  color: var(--color-text);
+}
+
+.module-preview {
+  display: flex;
+  gap: var(--space-12);
+  margin-bottom: var(--space-16);
+  padding: var(--space-12);
+  background-color: var(--color-secondary);
+  border-radius: var(--radius-base);
+  border-left: 3px solid var(--color-primary);
+}
+
+.module-number {
+  width: 32px;
+  height: 32px;
+  background-color: var(--color-primary);
+  color: var(--color-btn-primary-text);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-sm);
+  flex-shrink: 0;
+}
+
+.module-info h5 {
+  margin: 0 0 var(--space-4) 0;
+  color: var(--color-text);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+}
+
+.module-info p {
+  margin: 0 0 var(--space-8) 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+}
+
+.module-meta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.success-actions {
+  display: flex;
+  gap: var(--space-12);
+  justify-content: center;
+  margin-top: var(--space-24);
+}
+
+/* Mobile responsive adjustments for modals */
+@media (max-width: 768px) {
+  .modal__content {
+    max-width: 95vw;
+    max-height: 95vh;
+  }
+  
+  .lesson-actions {
+    flex-direction: column;
+  }
+  
+  .lesson-actions .btn {
+    width: 100%;
+  }
+  
+  .success-stats {
+    flex-direction: column;
+    gap: var(--space-16);
+  }
+  
+  .success-actions {
+    flex-direction: column;
+  }
+  
+  .success-actions .btn {
+    width: 100%;
+  }
+  
+  .module-preview {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  
+  .module-number {
+    margin-bottom: var(--space-8);
+  }
+} 

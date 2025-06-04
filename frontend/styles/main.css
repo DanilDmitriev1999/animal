@@ -1,0 +1,68 @@
+/* 
+ * AI Learning Platform - Main Styles
+ * Главный файл стилей, импортирующий все компоненты
+ * 
+ * Структура:
+ * 1. Variables - CSS переменные и темы
+ * 2. Base - базовые стили HTML/body
+ * 3. Components - переиспользуемые компоненты
+ * 4. Layout - макеты страниц
+ * 5. Pages - стили конкретных страниц
+ * 6. Utils - утилитарные классы и адаптивность
+ */
+
+/* === 1. FOUNDATION === */
+/* CSS переменные, цвета, шрифты, темы */
+@import './variables.css';
+
+/* Базовые стили HTML, body, типографика, доступность */
+@import './base.css';
+
+/* === 2. COMPONENTS === */
+/* Кнопки всех типов и размеров */
+@import './components/buttons.css';
+
+/* Формы, поля ввода, валидация */
+@import './components/forms.css';
+
+/* Карточки, статусы, прогресс-бары */
+@import './components/cards.css';
+
+/* Модальные окна и всплывающие элементы */
+@import './components/modals.css';
+
+/* Уроки и практические задания */
+@import './components/lessons.css';
+
+/* === 3. LAYOUT === */
+/* Контейнеры, сетки, базовая разметка */
+@import './layout/container.css';
+
+/* Дашборд, сайдбар, навигация */
+@import './layout/dashboard.css';
+
+/* === 4. PAGES === */
+/* Посадочная страница */
+@import './pages/landing.css';
+
+/* Аутентификация (вход/регистрация) */
+@import './pages/auth.css';
+
+/* Чат с AI, сообщения */
+@import './pages/chat.css';
+
+/* Создание и управление треками */
+@import './pages/tracks.css';
+
+/* Детальный просмотр модулей курса */
+@import './pages/modules.css';
+
+/* AI настройки */
+@import './pages/settings.css';
+
+/* === 5. UTILITIES === */
+/* Утилитарные классы (flex, margins, etc.) */
+@import './utils/utilities.css';
+
+/* Адаптивность для всех устройств */
+@import './utils/responsive.css'; 

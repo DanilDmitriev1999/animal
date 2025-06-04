@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Learning Platform - Персонализированное обучение с ИИ</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Landing Page -->
+        <div id="landing-page" class="page">
+            <header class="landing-header">
+                <div class="container">
+                    <nav class="flex justify-between items-center py-16">
+                        <div class="logo">
+                            <h2 class="m-0">AI Learning Platform</h2>
+                        </div>
+                        <div>
+                            <button class="btn btn--outline" onclick="showPage('auth-page')">Войти</button>
+                        </div>
+                    </nav>
+                </div>
+            </header>
+
+            <main class="landing-main">
+                <div class="container">
+                    <section class="hero">
+                        <div class="hero-content">
+                            <h1>Персонализированное обучение с ИИ</h1>
+                            <p class="hero-subtitle">Создавайте учебные треки, планируйте курсы с помощью AI и отслеживайте свой прогресс в режиме реального времени</p>
+                            <button class="btn btn--primary btn--lg hero-cta-btn" onclick="showPage('auth-page')">Начать обучение</button>
+                        </div>
+                        <div class="hero-visual">
+                            <div class="hero-graphic">
+                                <div class="graphic-element graphic-1">🎯</div>
+                                <div class="graphic-element graphic-2">💬</div>
+                                <div class="graphic-element graphic-3">📊</div>
+                                <div class="graphic-element graphic-4">🏠</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="features">
+                        <h2>Преимущества обучения с AI</h2>
+                        <div class="features-grid">
+                            <div class="card">
+                                <div class="card__body">
+                                    <h3>🎯 Персональные треки</h3>
+                                    <p>AI создает индивидуальный план обучения на основе ваших целей и уровня подготовки</p>
+                                </div>
+                            </div>
+                            <div class="card">
+                                <div class="card__body">
+                                    <h3>💬 Интерактивное планирование</h3>
+                                    <p>Обсуждайте и корректируйте план курса в чате с AI-ассистентом</p>
+                                </div>
+                            </div>
+                            <div class="card">
+                                <div class="card__body">
+                                    <h3>📊 Отслеживание прогресса</h3>
+                                    <p>Следите за своими достижениями и получайте рекомендации для улучшения</p>
+                                </div>
+                            </div>
+                            <div class="card">
+                                <div class="card__body">
+                                    <h3>🏠 Практические задания</h3>
+                                    <p>Получайте домашние задания и практические упражнения адаптированные под ваш уровень</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </main>
+        </div>
+
+        <!-- Auth Page -->
+        <div id="auth-page" class="page hidden">
+            <div class="auth-container">
+                <div class="auth-card card">
+                    <div class="card__body">
+                        <div class="auth-header">
+                            <h2 id="auth-title">Вход в систему</h2>
+                            <p class="auth-subtitle">Добро пожаловать в AI Learning Platform</p>
+                        </div>
+
+                        <!-- Login Form -->
+                        <form id="login-form" class="auth-form">
+                            <div class="form-group">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" id="login-email" placeholder="example@email.com" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Пароль</label>
+                                <input type="password" class="form-control" id="login-password" placeholder="Введите ваш пароль" required>
+                            </div>
+                            <button type="submit" class="btn btn--primary btn--full-width">Войти</button>
+                        </form>
+
+                        <!-- Register Form -->
+                        <form id="register-form" class="auth-form hidden">
+                            <div class="form-group">
+                                <label class="form-label">Имя</label>
+                                <input type="text" class="form-control" id="register-name" placeholder="Ваше имя" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Фамилия</label>
+                                <input type="text" class="form-control" id="register-lastname" placeholder="Ваша фамилия" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" id="register-email" placeholder="example@email.com" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Пароль</label>
+                                <input type="password" class="form-control" id="register-password" placeholder="Минимум 8 символов" required>
+                                <small class="password-hint">Пароль должен содержать минимум 8 символов, включая буквы и цифры</small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Подтверждение пароля</label>
+                                <input type="password" class="form-control" id="register-confirm" placeholder="Повторите пароль" required>
+                            </div>
+                            <button type="submit" class="btn btn--primary btn--full-width">Зарегистрироваться</button>
+                        </form>
+
+                        <div class="auth-switch">
+                            <p id="auth-switch-text">Нет аккаунта? <a href="#" id="auth-switch-link">Зарегистрироваться</a></p>
+                        </div>
+
+                        <!-- Guest Access -->
+                        <div class="guest-access">
+                            <hr class="divider">
+                            <p class="guest-text">Или попробуйте без регистрации:</p>
+                            <button type="button" class="btn btn--outline btn--full-width" onclick="handleGuestLogin()">
+                                👤 Войти как гость
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard-page" class="page hidden">
+            <div class="dashboard-layout">
+                <aside class="sidebar">
+                    <div class="sidebar-header">
+                        <h3>AI Learning</h3>
+                    </div>
+                    <nav class="sidebar-nav">
+                        <a href="#" class="sidebar-link active" onclick="showDashboardSection('tracks')">📚 Мои треки</a>
+                        <a href="#" class="sidebar-link" onclick="showPage('create-track-page')">➕ Создать трек</a>
+                        <a href="#" class="sidebar-link" onclick="showPage('ai-settings-page')">⚙️ Настройки AI</a>
+                        <a href="#" class="sidebar-link" onclick="showDashboardSection('profile')">👤 Профиль</a>
+                        <a href="#" class="sidebar-link logout" onclick="logout()">🚪 Выйти</a>
+                    </nav>
+                </aside>
+
+                <main class="dashboard-main">
+                    <div id="tracks-section" class="dashboard-section">
+                        <div class="dashboard-header">
+                            <h1>Мои треки обучения</h1>
+                            <button class="btn btn--primary" onclick="showPage('create-track-page')">Создать новый трек</button>
+                        </div>
+                        <div id="tracks-container" class="tracks-grid">
+                            <!-- Tracks will be loaded here -->
+                        </div>
+                    </div>
+
+                    <div id="profile-section" class="dashboard-section hidden">
+                        <div class="dashboard-header">
+                            <h1>Профиль пользователя</h1>
+                        </div>
+                        <div class="card">
+                            <div class="card__body">
+                                <h3>Информация о пользователе</h3>
+                                <p><strong>Имя:</strong> <span id="user-name">Пользователь</span></p>
+                                <p><strong>Email:</strong> <span id="user-email">user@example.com</span></p>
+                                <p><strong>Треков создано:</strong> <span id="user-tracks-count">0</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+
+        <!-- Create Track Page -->
+        <div id="create-track-page" class="page hidden">
+            <div class="container">
+                <div class="page-header">
+                    <button class="btn btn--outline" onclick="showPage('dashboard-page')">← Назад к дашборду</button>
+                    <h1>Создание нового трека</h1>
+                </div>
+
+                <div class="create-track-container">
+                    <form id="create-track-form" class="track-form">
+                        <div class="form-group">
+                            <label class="form-label">Название трека *</label>
+                            <input type="text" class="form-control" id="track-title" placeholder="Например: Изучение Python для анализа данных" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Описание навыка/области *</label>
+                            <textarea class="form-control" id="track-description" rows="3" placeholder="Опишите что вы хотите изучить и в какой области применить знания..." required></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Уровень сложности *</label>
+                            <select class="form-control" id="track-difficulty" required>
+                                <option value="">Выберите уровень сложности</option>
+                                <option value="beginner">Начальный - я новичок в этой области</option>
+                                <option value="intermediate">Средний - у меня есть базовые знания</option>
+                                <option value="advanced">Продвинутый - я хочу углубить знания</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Ожидаемая продолжительность (часов) *</label>
+                            <input type="number" class="form-control" id="track-duration" min="1" max="500" placeholder="Например: 40" required>
+                            <small class="form-hint">Укажите примерное количество часов, которое готовы потратить на изучение</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Ваши ожидания от курса</label>
+                            <textarea class="form-control" id="track-expectations" rows="4" placeholder="Опишите конкретные навыки которые хотите приобрести, проекты которые планируете реализовать, или цели которых хотите достичь..."></textarea>
+                            <small class="form-hint">Эта информация поможет AI создать более персонализированный план обучения</small>
+                        </div>
+
+                        <button type="submit" class="btn btn--primary btn--lg">Начать планирование с AI</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Planning Page -->
+        <div id="chat-page" class="page hidden">
+            <div class="chat-layout">
+                <aside class="chat-sidebar">
+                    <div class="track-info">
+                        <h3 id="chat-track-title">Название трека</h3>
+                        <div class="track-details">
+                            <p><strong>Уровень:</strong> <span id="chat-track-level">-</span></p>
+                            <p><strong>Продолжительность:</strong> <span id="chat-track-duration">-</span> ч.</p>
+                        </div>
+                    </div>
+
+                    <div class="planning-status">
+                        <h4>🤖 Статус AI</h4>
+                        <div class="ai-status" id="ai-status">
+                            <div class="status-indicator"></div>
+                            <span class="status-text">Готов к планированию</span>
+                        </div>
+                    </div>
+
+                    <div class="planning-progress">
+                        <h4>📋 Прогресс планирования</h4>
+                        <div class="progress-steps" id="planning-steps">
+                            <div class="progress-step pending">
+                                <div class="step-icon pending">1</div>
+                                <span>Обсуждение целей</span>
+                            </div>
+                            <div class="progress-step pending">
+                                <div class="step-icon pending">2</div>
+                                <span>Структура курса</span>
+                            </div>
+                            <div class="progress-step pending">
+                                <div class="step-icon pending">3</div>
+                                <span>Детализация модулей</span>
+                            </div>
+                            <div class="progress-step pending">
+                                <div class="step-icon pending">4</div>
+                                <span>Финализация</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chat-actions">
+                        <div class="action-group">
+                            <h5>Управление курсом</h5>
+                            <button class="btn btn--primary btn--full-width" onclick="finalizeCoursePlan()" id="finalize-main-btn" style="display: none;">
+                                ✨ Финализировать план
+                            </button>
+                            <button class="btn btn--outline btn--full-width" onclick="showPage('dashboard-page')">
+                                ← Вернуться к трекам
+                            </button>
+                        </div>
+                    </div>
+                </aside>
+
+                <main class="chat-main">
+                    <div class="chat-header">
+                        <h2>Планирование курса с AI</h2>
+                        <button class="btn btn--outline" onclick="showPage('dashboard-page')">← Назад</button>
+                    </div>
+
+                    <div id="chat-messages" class="chat-messages">
+                        <!-- Сообщения будут загружены здесь динамически -->
+                    </div>
+
+                    <div class="chat-input">
+                        <form id="chat-form">
+                            <div class="chat-input-container">
+                                <input type="text" id="chat-message-input" placeholder="Расскажите о ваших целях обучения..." required>
+                                <button type="submit" class="btn btn--primary">
+                                    <span>Отправить</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </main>
+            </div>
+        </div>
+
+        <!-- AI Settings Page -->
+        <div id="ai-settings-page" class="page hidden">
+            <div class="container">
+                <div class="page-header">
+                    <button class="btn btn--outline" onclick="showPage('dashboard-page')">← Назад к дашборду</button>
+                    <h1>Настройки AI</h1>
+                </div>
+
+                <div class="settings-container">
+                    <form id="ai-settings-form" class="settings-form">
+                        <div class="card">
+                            <div class="card__body">
+                                <h3>Настройки OpenAI</h3>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Название модели</label>
+                                    <input type="text" class="form-control" id="model-name" value="gpt-3.5-turbo" placeholder="gpt-3.5-turbo">
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">Base URL</label>
+                                    <input type="url" class="form-control" id="base-url" value="https://api.openai.com/v1" placeholder="https://api.openai.com/v1">
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">API Key</label>
+                                    <input type="password" class="form-control" id="api-key" placeholder="sk-...">
+                                    <small class="form-hint">Ваш API ключ будет сохранен локально и использован для запросов к AI</small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">Max Tokens</label>
+                                    <input type="number" class="form-control" id="max-tokens" value="2000" min="1" max="4000" placeholder="2000">
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">Temperature: <span id="temperature-value">0.7</span></label>
+                                    <input type="range" class="temperature-slider" id="temperature" min="0" max="1" step="0.1" value="0.7">
+                                    <small class="form-hint">Контролирует творческость ответов AI (0 = точные ответы, 1 = креативные ответы)</small>
+                                </div>
+
+                                <div class="settings-actions">
+                                    <button type="button" class="btn btn--outline" onclick="testConnection()">Тестировать подключение</button>
+                                    <button type="submit" class="btn btn--primary">Сохранить настройки</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Track Detail Page -->
+        <div id="track-detail-page" class="page hidden">
+            <div class="container">
+                <div class="page-header">
+                    <button class="btn btn--outline" onclick="showPage('dashboard-page')">← Назад к дашборду</button>
+                    <h1 id="track-detail-title">Название трека</h1>
+                </div>
+
+                <div class="track-detail-container">
+                    <div class="track-overview card">
+                        <div class="card__body">
+                            <div class="track-status-header">
+                                <div>
+                                    <h3>Обзор трека</h3>
+                                    <p id="track-detail-description">Описание трека</p>
+                                </div>
+                                <div class="status" id="track-detail-status">
+                                    <span>Активный</span>
+                                </div>
+                            </div>
+                            <div class="progress-section">
+                                <div class="progress-header">
+                                    <span>Прогресс</span>
+                                    <span id="track-detail-progress">0%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div id="track-detail-progress-fill" class="progress-fill"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Панель управления обучением -->
+                    <div class="learning-controls card">
+                        <div class="card__body">
+                            <h4>🎛️ Настройки обучения</h4>
+                            <div class="controls-grid">
+                                <div class="control-item">
+                                    <label class="control-label">
+                                        <input type="checkbox" id="progressive-unlock" onchange="toggleProgressiveUnlock()">
+                                        <span class="control-text">
+                                            <strong>Прогрессивная разблокировка</strong>
+                                            <small>Модули разблокируются по мере прохождения</small>
+                                        </span>
+                                    </label>
+                                </div>
+                                <div class="control-item">
+                                    <label class="control-label">
+                                        <input type="checkbox" id="adaptive-learning" onchange="toggleAdaptiveLearning()">
+                                        <span class="control-text">
+                                            <strong>Адаптивное обучение</strong>
+                                            <small>План курса адаптируется под ваш прогресс</small>
+                                        </span>
+                                    </label>
+                                </div>
+                                <div class="control-item debug-control">
+                                    <label class="control-label">
+                                        <input type="checkbox" id="debug-mode" onchange="toggleDebugMode()">
+                                        <span class="control-text">
+                                            <strong>🔧 Режим отладки</strong>
+                                            <small>Отключает все ограничения для тестирования</small>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modules-section">
+                        <h3>Модули курса</h3>
+                        <div id="modules-container">
+                            <!-- Modules will be loaded here -->
+                        </div>
+                    </div>
+
+                    <div class="track-actions">
+                        <button class="btn btn--primary" onclick="continuelearning()">Продолжить обучение</button>
+                        <button class="btn btn--outline" onclick="editTrackPlan()">Редактировать план</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Новая страница для детального просмотра модуля -->
+        <div id="module-detail-page" class="page hidden">
+            <div class="container">
+                <div class="page-header">
+                    <button class="btn btn--outline" onclick="backToTrackDetail()">← Назад к треку</button>
+                    <div class="module-breadcrumb">
+                        <span id="module-track-title">Название трека</span>
+                        <span class="breadcrumb-separator">•</span>
+                        <span id="module-detail-title">Модуль 1</span>
+                    </div>
+                </div>
+
+                <div class="module-detail-container">
+                    <!-- Обзор модуля -->
+                    <div class="module-overview card">
+                        <div class="card__body">
+                            <div class="module-status-header">
+                                <div class="module-info">
+                                    <h1 id="module-detail-name">Название модуля</h1>
+                                    <p id="module-detail-description">Описание модуля</p>
+                                    <div class="module-meta">
+                                        <span class="meta-item">
+                                            ⏱️ <span id="module-duration">5</span> часов
+                                        </span>
+                                        <span class="meta-item">
+                                            🎯 <span id="module-objectives-count">3</span> целей
+                                        </span>
+                                        <span class="meta-item">
+                                            📚 <span id="module-lessons-count">5</span> уроков
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="module-status-badge">
+                                    <span class="status" id="module-detail-status">Не начат</span>
+                                </div>
+                            </div>
+                            
+                            <div class="module-progress-section">
+                                <div class="progress-header">
+                                    <span>Прогресс модуля</span>
+                                    <span id="module-detail-progress">0%</span>
+                                </div>
+                                <div class="progress-bar progress-bar--large">
+                                    <div id="module-detail-progress-fill" class="progress-fill"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Цели обучения -->
+                    <div class="learning-objectives card">
+                        <div class="card__body">
+                            <h3>🎯 Цели обучения</h3>
+                            <div id="objectives-list" class="objectives-grid">
+                                <!-- Objectives will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Структура модуля / Уроки -->
+                    <div class="module-structure">
+                        <div class="structure-header">
+                            <h3>📚 Структура модуля</h3>
+                            <div class="structure-controls">
+                                <button class="btn btn--small btn--outline" onclick="toggleLessonsView('grid')">
+                                    <span class="icon">⊞</span> Сетка
+                                </button>
+                                <button class="btn btn--small btn--outline active" onclick="toggleLessonsView('list')">
+                                    <span class="icon">☰</span> Список
+                                </button>
+                            </div>
+                        </div>
+                        <div id="lessons-container" class="lessons-list">
+                            <!-- Lessons will be loaded here -->
+                        </div>
+                    </div>
+
+                    <!-- Практические задания -->
+                    <div class="homework-section card">
+                        <div class="card__body">
+                            <h3>📝 Практические задания</h3>
+                            <div id="homework-container" class="homework-grid">
+                                <!-- Homework assignments will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Действия с модулем -->
+                    <div class="module-actions">
+                        <button class="btn btn--primary btn--large" onclick="startModule()" id="start-module-btn">
+                            🚀 Начать изучение
+                        </button>
+                        <button class="btn btn--secondary btn--large" onclick="continueModule()" id="continue-module-btn" style="display:none;">
+                            📖 Продолжить изучение
+                        </button>
+                        <button class="btn btn--outline" onclick="generateModuleContent()">
+                            🤖 Сгенерировать контент
+                        </button>
+                        <button class="btn btn--outline" onclick="downloadModulePDF()">
+                            📄 Скачать PDF
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Новая страница для изучения модуля -->
+        <div id="module-learning-page" class="page hidden">
+            <div class="container-fluid">
+                <div class="module-learning-layout">
+                    <!-- Боковая панель с информацией о модуле -->
+                    <aside class="module-sidebar">
+                        <div class="module-info-card">
+                            <div class="module-breadcrumb">
+                                <button class="btn btn--text" onclick="backToModuleDetail()">← Назад к модулю</button>
+                                <div class="breadcrumb-path">
+                                    <span id="learning-track-title">Название трека</span>
+                                    <span class="breadcrumb-separator">•</span>
+                                    <span id="learning-module-title">Модуль 1</span>
+                                </div>
+                            </div>
+                            
+                            <div class="module-learning-info">
+                                <h3 id="learning-module-name">Название модуля</h3>
+                                <p id="learning-module-description">Описание модуля</p>
+                                
+                                <div class="learning-progress">
+                                    <div class="progress-header">
+                                        <span>Прогресс изучения</span>
+                                        <span id="learning-progress-text">0%</span>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div id="learning-progress-fill" class="progress-fill"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="learning-actions">
+                                <button class="btn btn--primary btn--full-width" id="complete-module-btn" onclick="completeModuleLearning()">
+                                    ✅ Завершить модуль
+                                </button>
+                                <button class="btn btn--outline btn--full-width" onclick="downloadModuleConspect()">
+                                    📄 Скачать конспект
+                                </button>
+                            </div>
+                        </div>
+                    </aside>
+
+                    <!-- Основная область с конспектом и чатом -->
+                    <main class="module-learning-main">
+                        <!-- Переключатель между конспектом и чатом -->
+                        <div class="learning-tabs">
+                            <button class="tab-button active" onclick="switchLearningTab('conspect')">
+                                📖 Конспект модуля
+                            </button>
+                            <button class="tab-button" onclick="switchLearningTab('chat')">
+                                💬 Чат с AI
+                                <span class="chat-indicator" id="chat-indicator" style="display:none;">●</span>
+                            </button>
+                        </div>
+
+                        <!-- Конспект модуля -->
+                        <div id="learning-conspect-tab" class="learning-tab-content active">
+                            <div class="conspect-container">
+                                <div class="conspect-header">
+                                    <h2>📖 Конспект модуля</h2>
+                                    <div class="conspect-actions">
+                                        <button class="btn btn--outline btn--small" onclick="toggleConspectFullscreen()">
+                                            🔍 Полный экран
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="module-conspect-content" class="conspect-content">
+                                    <div class="conspect-loading">
+                                        <div class="loading-spinner"></div>
+                                        <p>Генерируем конспект модуля...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Чат с AI -->
+                        <div id="learning-chat-tab" class="learning-tab-content">
+                            <div class="learning-chat-container">
+                                <div class="learning-chat-header">
+                                    <h2>💬 Обсуждение модуля с AI</h2>
+                                    <div class="chat-status">
+                                        <span class="status-indicator online"></span>
+                                        <span>AI готов отвечать на вопросы</span>
+                                    </div>
+                                </div>
+
+                                <div id="module-chat-messages" class="module-chat-messages">
+                                    <!-- Сообщения чата будут загружены здесь -->
+                                </div>
+
+                                <div class="module-chat-input">
+                                    <form id="module-chat-form">
+                                        <div class="chat-input-container">
+                                            <textarea 
+                                                id="module-chat-message-input" 
+                                                placeholder="Задайте вопрос по материалу модуля..."
+                                                rows="2"
+                                                required></textarea>
+                                            <button type="submit" class="btn btn--primary">
+                                                <span class="btn-text">Отправить</span>
+                                                <span class="btn-icon">📤</span>
+                                            </button>
+                                        </div>
+                                        <div class="chat-hints">
+                                            <span class="hint-item" onclick="insertChatHint('Объясни подробнее')">💡 Объясни подробнее</span>
+                                            <span class="hint-item" onclick="insertChatHint('Приведи пример')">📝 Приведи пример</span>
+                                            <span class="hint-item" onclick="insertChatHint('Как это применить на практике?')">🔧 Как применить?</span>
+                                            <span class="hint-item" onclick="insertChatHint('Проверь мое понимание')">✅ Проверь понимание</span>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" 
+            onerror="console.warn('Failed to load marked from CDN, using fallback')"></script>
+    <script>
+        // Проверяем загрузку marked
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof marked === 'undefined') {
+                console.warn('Marked library not loaded, text formatting will be basic');
+            } else {
+                console.log('Marked library loaded successfully');
+            }
+        });
+    </script>
+    <script src="app.js"></script>
+</body>
+</html>

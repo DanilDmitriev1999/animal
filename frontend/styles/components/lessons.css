@@ -1,0 +1,204 @@
+/* ===== КОМПОНЕНТЫ УРОКОВ И ЗАДАНИЙ ===== */
+
+/* Список и сетка уроков */
+.lessons-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.lessons-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+/* Карточка урока */
+.lesson-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lesson-item:hover {
+  border-color: var(--color-primary);
+  background: var(--color-background);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.lesson-item.completed {
+  background: var(--color-success-light);
+  border-color: var(--color-success);
+}
+
+.lesson-item.in-progress {
+  background: var(--color-warning-light);
+  border-color: var(--color-warning);
+}
+
+/* Номер урока */
+.lesson-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.lesson-item.completed .lesson-number {
+  background: var(--color-success);
+}
+
+.lesson-item.in-progress .lesson-number {
+  background: var(--color-warning);
+}
+
+/* Контент урока */
+.lesson-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.lesson-title {
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 0.25rem 0;
+  font-size: 1rem;
+}
+
+.lesson-description {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  margin: 0 0 0.5rem 0;
+  line-height: 1.4;
+}
+
+.lesson-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* Статус и прогресс урока */
+.lesson-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.lesson-progress-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: var(--color-text-secondary);
+}
+
+.lesson-item.completed .lesson-progress-circle {
+  background: var(--color-success);
+  color: white;
+}
+
+.lesson-item.in-progress .lesson-progress-circle {
+  background: conic-gradient(var(--color-warning) var(--progress, 0%), var(--color-border) var(--progress, 0%));
+  color: var(--color-text);
+}
+
+/* Практические задания */
+.homework-section {
+  background: var(--color-card);
+}
+
+.homework-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.homework-item {
+  padding: 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.homework-item:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.homework-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.homework-title {
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.homework-type {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.homework-description {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin-bottom: 0.75rem;
+}
+
+.homework-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+/* Адаптивность для уроков */
+@media (max-width: 768px) {
+  .homework-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .lesson-item {
+    padding: 0.75rem;
+  }
+  
+  .lesson-number {
+    width: 28px;
+    height: 28px;
+    font-size: 0.8rem;
+  }
+} 
