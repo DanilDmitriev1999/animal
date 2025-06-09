@@ -115,3 +115,4 @@ dmypy.json
 tmp/
 temp/
 *.tmp 
+*.mdc

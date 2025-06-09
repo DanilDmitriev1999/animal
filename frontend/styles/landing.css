@@ -1,0 +1,922 @@
+/* Landing Page Styles */
+
+/* =====================================
+   🎨 НАСТРАИВАЕМЫЕ ГРАДИЕНТЫ
+   ===================================== */
+
+:root {
+    /* 🎨 Основной фоновый градиент */
+    --bg-gradient-start: var(--color-background);
+    --bg-gradient-end: rgba(38, 40, 80, 0.6);
+    --bg-gradient-direction: 135deg;
+    
+    /* 🌈 Настраиваемые градиентные слои */
+    --gradient-layer-1-start: rgba(255, 121, 198, 0.15);
+    --gradient-layer-1-end: rgba(157, 0, 184, 0.08);
+    --gradient-layer-1-position: 10% 15%;
+    --gradient-layer-1-size: 45% 55%;
+    
+    --gradient-layer-2-start: rgba(30, 144, 255, 0.15);
+    --gradient-layer-2-end: rgba(0, 180, 216, 0.08);
+    --gradient-layer-2-position: 85% 60%;
+    --gradient-layer-2-size: 40% 45%;
+    
+    --gradient-layer-3-start: rgba(102, 204, 153, 0.15);
+    --gradient-layer-3-end: rgba(0, 128, 128, 0.08);
+    --gradient-layer-3-position: 20% 85%;
+    --gradient-layer-3-size: 50% 45%;
+    
+    --gradient-layer-4-start: rgba(255, 215, 0, 0.15);
+    --gradient-layer-4-end: rgba(255, 140, 0, 0.08);
+    --gradient-layer-4-position: 75% 25%;
+    --gradient-layer-4-size: 35% 40%;
+    
+    /* 🎭 Анимация градиентов */
+    --gradient-animation-duration: 20s;
+    --gradient-animation-intensity: 8%;
+}
+
+/* Темная тема - адаптация градиентов */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-gradient-start: var(--color-background);
+        --bg-gradient-end: rgba(15, 20, 45, 0.8);
+        
+        --gradient-layer-1-start: rgba(255, 121, 198, 0.12);
+        --gradient-layer-1-end: rgba(157, 0, 184, 0.06);
+        
+        --gradient-layer-2-start: rgba(30, 144, 255, 0.12);
+        --gradient-layer-2-end: rgba(0, 180, 216, 0.06);
+        
+        --gradient-layer-3-start: rgba(102, 204, 153, 0.12);
+        --gradient-layer-3-end: rgba(0, 128, 128, 0.06);
+        
+        --gradient-layer-4-start: rgba(255, 215, 0, 0.12);
+        --gradient-layer-4-end: rgba(255, 140, 0, 0.06);
+    }
+}
+
+[data-color-scheme="dark"] {
+    --bg-gradient-start: var(--color-background);
+    --bg-gradient-end: rgba(15, 20, 45, 0.8);
+    
+    --gradient-layer-1-start: rgba(255, 121, 198, 0.12);
+    --gradient-layer-1-end: rgba(157, 0, 184, 0.06);
+    
+    --gradient-layer-2-start: rgba(30, 144, 255, 0.12);
+    --gradient-layer-2-end: rgba(0, 180, 216, 0.06);
+    
+    --gradient-layer-3-start: rgba(102, 204, 153, 0.12);
+    --gradient-layer-3-end: rgba(0, 128, 128, 0.06);
+    
+    --gradient-layer-4-start: rgba(255, 215, 0, 0.12);
+    --gradient-layer-4-end: rgba(255, 140, 0, 0.06);
+}
+
+/* General Layout */
+body {
+    background: linear-gradient(var(--bg-gradient-direction), var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+    position: relative;
+    overflow-x: hidden;
+}
+
+.landing-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    position: relative;
+    z-index: 1;
+}
+
+/* 🌈 Новая система градиентного фона вместо кругов */
+.glass-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    overflow: hidden;
+    background: 
+        /* Слой 1 - Розово-фиолетовый */
+        radial-gradient(
+            ellipse var(--gradient-layer-1-size) at var(--gradient-layer-1-position),
+            var(--gradient-layer-1-start) 0%,
+            var(--gradient-layer-1-end) 50%,
+            transparent 80%
+        ),
+        /* Слой 2 - Сине-голубой */
+        radial-gradient(
+            ellipse var(--gradient-layer-2-size) at var(--gradient-layer-2-position),
+            var(--gradient-layer-2-start) 0%,
+            var(--gradient-layer-2-end) 50%,
+            transparent 80%
+        ),
+        /* Слой 3 - Зелено-бирюзовый */
+        radial-gradient(
+            ellipse var(--gradient-layer-3-size) at var(--gradient-layer-3-position),
+            var(--gradient-layer-3-start) 0%,
+            var(--gradient-layer-3-end) 50%,
+            transparent 80%
+        ),
+        /* Слой 4 - Желто-оранжевый */
+        radial-gradient(
+            ellipse var(--gradient-layer-4-size) at var(--gradient-layer-4-position),
+            var(--gradient-layer-4-start) 0%,
+            var(--gradient-layer-4-end) 50%,
+            transparent 80%
+        );
+    
+    /* Плавная анимация градиентов */
+    animation: gradientShift var(--gradient-animation-duration) ease-in-out infinite;
+    filter: blur(40px);
+}
+
+/* Анимация движения градиентов */
+@keyframes gradientShift {
+    0% {
+        transform: translate(0, 0) scale(1);
+        filter: blur(40px) hue-rotate(0deg);
+    }
+    25% {
+        transform: translate(var(--gradient-animation-intensity), calc(var(--gradient-animation-intensity) * 0.5)) scale(1.05);
+        filter: blur(45px) hue-rotate(5deg);
+    }
+    50% {
+        transform: translate(0, var(--gradient-animation-intensity)) scale(1);
+        filter: blur(40px) hue-rotate(0deg);
+    }
+    75% {
+        transform: translate(calc(var(--gradient-animation-intensity) * -1), calc(var(--gradient-animation-intensity) * 0.5)) scale(0.95);
+        filter: blur(35px) hue-rotate(-5deg);
+    }
+    100% {
+        transform: translate(0, 0) scale(1);
+        filter: blur(40px) hue-rotate(0deg);
+    }
+}
+
+/* Убираем старые круги */
+.glass-shape,
+.glass-shape-1,
+.glass-shape-2,
+.glass-shape-3,
+.glass-shape-4 {
+    display: none;
+}
+
+/* Альтернативная анимация для медленных устройств */
+@media (prefers-reduced-motion: reduce) {
+    .glass-background {
+        animation: none;
+        filter: blur(40px);
+    }
+}
+
+/* Header Specific */
+.landing-header {
+    position: fixed;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    z-index: 100;
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.landing-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-24);
+}
+
+.nav-link {
+    color: var(--color-text);
+    text-decoration: none;
+    font-weight: var(--font-weight-medium);
+    transition: all var(--duration-fast) var(--ease-standard);
+}
+
+.nav-link:hover {
+    color: var(--color-primary);
+    text-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.4);
+}
+
+.nav-link.btn {
+    padding: var(--space-8) var(--space-16);
+    border-radius: var(--radius-base);
+}
+
+/* Hero Section */
+.hero {
+    padding: 140px 0 60px;
+    min-height: 90vh;
+    display: flex;
+    align-items: center;
+}
+
+.hero .container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-32);
+    align-items: start;
+}
+
+.hero-content {
+    max-width: 600px;
+}
+
+.hero-title {
+    font-size: var(--font-size-4xl);
+    font-weight: var(--font-weight-bold);
+    line-height: 1.2;
+    margin-bottom: var(--space-16);
+    color: var(--color-text);
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.hero-subtitle {
+    font-size: var(--font-size-lg);
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+    margin-bottom: var(--space-32);
+}
+
+.hero-cta {
+    display: flex;
+    gap: var(--space-16);
+}
+
+.hero-features {
+    position: relative;
+}
+
+.hero-features .section-title {
+    text-align: center;
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    margin-bottom: var(--space-24);
+    color: var(--color-text);
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-16);
+}
+
+.feature-card {
+    position: relative;
+    padding: var(--space-20);
+    border-radius: var(--radius-lg);
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: box-shadow var(--duration-normal) var(--ease-standard);
+}
+
+.feature-card:hover {
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+.feature-card:hover .inner-glow {
+    box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.3);
+}
+
+.feature-icon {
+    font-size: 24px;
+    margin-bottom: var(--space-12);
+    position: relative;
+    z-index: 2;
+}
+
+.feature-card h3 {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--space-8);
+    color: var(--color-text);
+    position: relative;
+    z-index: 2;
+}
+
+.feature-card p {
+    color: var(--color-text-secondary);
+    line-height: 1.4;
+    position: relative;
+    z-index: 2;
+    font-size: var(--font-size-sm);
+}
+
+/* Inner Glow Effect */
+.inner-glow {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.2);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* About Section */
+.about {
+    padding: 100px 0;
+    position: relative;
+}
+
+.about .container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-32);
+    align-items: center;
+}
+
+.about-content {
+    max-width: 600px;
+}
+
+.about-content .section-title {
+    text-align: left;
+}
+
+.about-content p {
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+    margin-bottom: var(--space-16);
+}
+
+.about-stats {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-24);
+    padding: var(--space-24);
+    border-radius: var(--radius-lg);
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.stat-divider {
+    width: 1px;
+    height: 60px;
+    background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.2), transparent);
+}
+
+.stat-item {
+    text-align: center;
+    position: relative;
+    z-index: 2;
+}
+
+.stat-item h3 {
+    font-size: var(--font-size-3xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-primary);
+    margin-bottom: var(--space-8);
+}
+
+.stat-item p {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.about-image {
+    position: relative;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: var(--space-8);
+    transition: box-shadow 0.3s var(--ease-standard);
+}
+
+.about-image:hover {
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12);
+}
+
+.about-image img {
+    width: 100%;
+    height: auto;
+    border-radius: var(--radius-md);
+    object-fit: cover;
+}
+
+/* Auth Modal */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.auth-modal {
+    position: relative;
+    max-width: 450px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+}
+
+.modal-header {
+    padding: var(--space-20);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+}
+
+.modal-header h3 {
+    font-size: var(--font-size-xl);
+    color: var(--color-text);
+    margin: 0;
+}
+
+.close-modal {
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: var(--space-4);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.close-modal:hover {
+    color: var(--color-primary);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.modal-body {
+    padding: var(--space-24);
+    position: relative;
+    z-index: 2;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-16);
+}
+
+.auth-form.hidden {
+    display: none;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+}
+
+.form-label {
+    color: var(--color-text);
+    font-weight: var(--font-weight-medium);
+    font-size: var(--font-size-sm);
+}
+
+.glass-input {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.glass-input:focus {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(var(--color-primary-rgb), 0.5) !important;
+    box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.2) !important;
+}
+
+.form-actions {
+    margin-top: var(--space-8);
+}
+
+.auth-footer {
+    text-align: center;
+    margin-top: var(--space-16);
+    color: var(--color-text-secondary);
+}
+
+.auth-footer a {
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: var(--font-weight-medium);
+    transition: all 0.2s ease;
+}
+
+.auth-footer a:hover {
+    text-decoration: underline;
+    text-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.4);
+}
+
+/* Glass Buttons */
+.btn--glass {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--color-text);
+    transition: all 0.3s ease;
+}
+
+.btn--glass:hover {
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.btn--glass:active {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.btn--glass-primary {
+    background: rgba(var(--color-primary-rgb), 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(var(--color-primary-rgb), 0.3);
+    color: var(--color-text);
+    transition: all 0.3s ease;
+}
+
+.btn--glass-primary:hover {
+    background: rgba(var(--color-primary-rgb), 0.3);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.btn--glass-primary:active {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Footer */
+.footer {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 40px 0 20px;
+    margin-top: auto;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    position: relative;
+}
+
+.footer-content {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: var(--space-32);
+    margin-bottom: var(--space-32);
+    position: relative;
+    z-index: 2;
+}
+
+.footer-logo h2 {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    margin-bottom: var(--space-8);
+    color: var(--color-text);
+}
+
+.footer-logo p {
+    color: var(--color-text-secondary);
+}
+
+.footer-links {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-24);
+}
+
+.footer-links-group h4 {
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--space-12);
+    color: var(--color-text);
+}
+
+.footer-links-group ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.footer-links-group li {
+    margin-bottom: var(--space-8);
+}
+
+.footer-links-group a {
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.footer-links-group a:hover {
+    color: var(--color-primary);
+}
+
+.footer-bottom {
+    border-top: none;
+    padding-top: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    position: relative;
+    z-index: 2;
+}
+
+.footer-social {
+    display: flex;
+    gap: var(--space-16);
+}
+
+.social-link {
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.social-link:hover {
+    color: var(--color-primary);
+}
+
+/* Responsive Styles */
+@media (max-width: 1200px) {
+    .hero .container {
+        gap: var(--space-24);
+    }
+    
+    .features-grid {
+        gap: var(--space-12);
+    }
+    
+    .feature-card {
+        padding: var(--space-16);
+    }
+}
+
+@media (max-width: 1024px) {
+    .hero .container {
+        grid-template-columns: 1fr;
+        gap: var(--space-32);
+    }
+
+    .hero-content {
+        text-align: center;
+        max-width: none;
+    }
+
+    .hero-cta {
+        justify-content: center;
+    }
+    
+    .hero-features .section-title {
+        text-align: center;
+    }
+
+    .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-16);
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .glass-shape {
+        transform: scale(0.7);
+    }
+}
+
+@media (max-width: 768px) {
+    .landing-header .header-content {
+        flex-direction: column;
+        gap: var(--space-16);
+    }
+
+    .landing-nav {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .hero {
+        padding: 120px 0 60px;
+    }
+
+    .features-grid {
+        grid-template-columns: 1fr;
+        max-width: 400px;
+    }
+
+    .footer-bottom {
+        flex-direction: column;
+        gap: var(--space-12);
+    }
+}
+
+@media (max-width: 480px) {
+    .hero-title {
+        font-size: var(--font-size-3xl);
+    }
+
+    .hero-cta {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .hero-cta .btn {
+        width: 100%;
+        max-width: 300px;
+    }
+    
+    .hero-features .section-title {
+        font-size: var(--font-size-xl);
+    }
+    
+    .feature-card {
+        padding: var(--space-16);
+    }
+    
+    .feature-card h3 {
+        font-size: var(--font-size-md);
+    }
+
+    .glass-shape {
+        transform: scale(0.5);
+        opacity: 0.4;
+    }
+}
+
+/* Dark mode color additions */
+:root {
+    --color-primary-rgb: 33, 128, 141;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --color-primary-rgb: 50, 184, 198;
+    }
+}
+
+[data-color-scheme="dark"] {
+    --color-primary-rgb: 50, 184, 198;
+}
+
+[data-color-scheme="light"] {
+    --color-primary-rgb: 33, 128, 141;
+}
+
+/* =====================================
+   🎨 ПРИМЕРЫ НАСТРОЙКИ ГРАДИЕНТОВ
+   ===================================== */
+
+/*
+🌈 Как настроить градиенты:
+
+1. Основной фон:
+   --bg-gradient-direction: 135deg;  // Направление (0deg-360deg)
+   --bg-gradient-start: #ваш-цвет;   // Начальный цвет
+   --bg-gradient-end: #ваш-цвет;     // Конечный цвет
+
+2. Градиентные слои (4 слоя доступно):
+   --gradient-layer-X-start: rgba(R, G, B, прозрачность);
+   --gradient-layer-X-end: rgba(R, G, B, прозрачность);
+   --gradient-layer-X-position: X% Y%;  // Позиция центра (0-100%)
+   --gradient-layer-X-size: W% H%;      // Размер эллипса
+
+3. Анимация:
+   --gradient-animation-duration: 20s;   // Длительность цикла
+   --gradient-animation-intensity: 8%;   // Интенсивность движения
+
+🎨 Готовые цветовые схемы:
+
+Oceanic (Океанская):
+--gradient-layer-1-start: rgba(72, 201, 176, 0.15);
+--gradient-layer-2-start: rgba(114, 114, 239, 0.15);
+--gradient-layer-3-start: rgba(46, 213, 115, 0.15);
+--gradient-layer-4-start: rgba(0, 123, 255, 0.15);
+
+Sunset (Закат):
+--gradient-layer-1-start: rgba(255, 107, 107, 0.15);
+--gradient-layer-2-start: rgba(255, 159, 26, 0.15);
+--gradient-layer-3-start: rgba(255, 77, 79, 0.15);
+--gradient-layer-4-start: rgba(255, 165, 2, 0.15);
+
+Purple Dream (Фиолетовая мечта):
+--gradient-layer-1-start: rgba(116, 185, 255, 0.15);
+--gradient-layer-2-start: rgba(162, 155, 254, 0.15);
+--gradient-layer-3-start: rgba(236, 72, 153, 0.15);
+--gradient-layer-4-start: rgba(168, 85, 247, 0.15);
+
+Forest (Лес):
+--gradient-layer-1-start: rgba(52, 211, 153, 0.15);
+--gradient-layer-2-start: rgba(34, 197, 94, 0.15);
+--gradient-layer-3-start: rgba(132, 204, 22, 0.15);
+--gradient-layer-4-start: rgba(16, 185, 129, 0.15);
+
+⚡ Быстрая настройка интенсивности:
+Слабые градиенты: 0.08-0.12
+Средние градиенты: 0.12-0.18
+Яркие градиенты: 0.18-0.25
+*/
+
+/* 🎨 Дополнительные настройки для особых случаев */
+
+/* Для высоких разрешений */
+@media (min-width: 1920px) {
+    :root {
+        --gradient-layer-1-size: 35% 45%;
+        --gradient-layer-2-size: 30% 35%;
+        --gradient-layer-3-size: 40% 35%;
+        --gradient-layer-4-size: 25% 30%;
+        --gradient-animation-intensity: 6%;
+    }
+}
+
+/* Для мобильных устройств */
+@media (max-width: 768px) {
+    :root {
+        --gradient-layer-1-size: 60% 75%;
+        --gradient-layer-2-size: 55% 65%;
+        --gradient-layer-3-size: 65% 65%;
+        --gradient-layer-4-size: 50% 60%;
+        --gradient-animation-intensity: 12%;
+    }
+    
+    .glass-background {
+        filter: blur(30px);
+    }
+}
+
+/* Для очень маленьких экранов */
+@media (max-width: 480px) {
+    .glass-background {
+        filter: blur(25px);
+    }
+}
+
+/* 🌙 Ночной режим - более мягкие градиенты */
+@media (prefers-color-scheme: dark) {
+    .glass-background {
+        filter: blur(35px);
+    }
+}
+
+/* 🔄 Альтернативная схема анимации - вращение */
+.glass-background.rotating {
+    animation: gradientRotate var(--gradient-animation-duration, 30s) linear infinite;
+}
+
+@keyframes gradientRotate {
+    from {
+        transform: rotate(0deg);
+        filter: blur(40px) hue-rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+        filter: blur(40px) hue-rotate(360deg);
+    }
+}
+
+/* 💫 Пульсирующий эффект */
+.glass-background.pulsing {
+    animation: gradientPulse var(--gradient-animation-duration, 15s) ease-in-out infinite;
+}
+
+@keyframes gradientPulse {
+    0%, 100% {
+        opacity: 0.8;
+        transform: scale(1);
+        filter: blur(40px);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.1);
+        filter: blur(50px);
+    }
+} 

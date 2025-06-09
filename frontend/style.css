@@ -1,39 +1,5 @@
-/*
- * AI Learning Platform - Styles
- * 
- * ⚠️  ЭТОТ ФАЙЛ ПЕРЕЕХАЛ В НОВУЮ СТРУКТУРУ!
- * 
- * Все стили теперь организованы в папке styles/ для лучшей поддержки:
- * 
- * styles/
- * ├── variables.css       - CSS переменные и темы
- * ├── base.css           - базовые стили HTML/body
- * ├── components/        - переиспользуемые компоненты
- * │   ├── buttons.css
- * │   ├── forms.css
- * │   ├── cards.css
- * │   ├── modals.css
- * │   └── lessons.css    - компоненты уроков и заданий
- * ├── layout/            - макеты страниц
- * │   ├── container.css
- * │   └── dashboard.css
- * ├── pages/             - стили конкретных страниц
- * │   ├── landing.css
- * │   ├── auth.css
- * │   ├── chat.css
- * │   ├── tracks.css
- * │   ├── modules.css    - детальный просмотр модулей
- * │   └── settings.css
- * ├── utils/             - утилитарные классы
- * │   ├── utilities.css
- * │   └── responsive.css
- * └── main.css          - главный файл импортов
- * 
- * Используйте styles/main.css как основной файл стилей
- */
-
-/* Импортируем новую структурированную систему стилей */
 @import './styles/main.css';
+@import './styles/landing.css';
 
 /* 
  * ВАЖНО ДЛЯ РАЗРАБОТЧИКОВ:

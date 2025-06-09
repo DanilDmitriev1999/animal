@@ -1,40 +1,26 @@
-version: '3.8'
-
 services:
-  # PostgreSQL база данных
-  db:
-    image: postgres:15-alpine
-    container_name: ai_learning_platform_db
+  postgres:
+    image: postgres:15
+    container_name: animal_postgres
     environment:
-      POSTGRES_DB: ai_learning_platform
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
+      POSTGRES_DB: animal_db
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d ai_learning_platform"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     restart: unless-stopped
 
-  # pgAdmin для управления БД (опционально)
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: ai_learning_platform_pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+  redis:
+    image: redis:7
+    container_name: animal_redis
     ports:
-      - "5050:80"
-    depends_on:
-      - db
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
     restart: unless-stopped
-    profiles:
-      - admin
 
 volumes:
-  postgres_data: 
+  postgres_data:
+  redis_data: 

@@ -1,6 +1,16 @@
 import { defineConfig } from 'vite'
 
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      input: {
+        main: 'index.html',
+        dashboard: 'dashboard.html'
+      }
+    },
+    outDir: 'dist',
+    assetsDir: 'assets',
+  },
   server: {
     port: 3000,
     host: '0.0.0.0',
@@ -25,9 +35,5 @@ export default defineConfig({
         changeOrigin: true,
       }
     }
-  },
-  build: {
-    outDir: 'dist',
-    assetsDir: 'assets',
   }
 }) 
