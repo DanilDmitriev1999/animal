@@ -6,7 +6,15 @@ import { showPage } from './ui.js';
 export function renderTracks() {
   if (elements.tracksGrid) {
     elements.tracksGrid.innerHTML = '';
-    appData.tracks.forEach(track => {
+    // Получаем email пользователя из localStorage
+    const userEmail = localStorage.getItem('user_email');
+    let tracksToShow = [];
+    if (userEmail === 'test@example.com') {
+      tracksToShow = appData.tracks;
+    } else {
+      tracksToShow = [];
+    }
+    tracksToShow.forEach(track => {
       const trackCard = createTrackCard(track);
       elements.tracksGrid.appendChild(trackCard);
     });
