@@ -133,76 +133,75 @@ authModal.addEventListener('click', (e) => {
     }
 });
 
+// Helper to send auth requests
+async function authRequest(url, payload, submitButton) {
+    const originalText = submitButton.textContent;
+    submitButton.textContent = 'Загрузка...';
+    submitButton.disabled = true;
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.detail || 'Ошибка запроса');
+        }
+
+        const data = await response.json();
+        localStorage.setItem('auth_token', data.access_token);
+        localStorage.setItem('user_email', payload.email);
+        window.location.href = 'dashboard.html';
+    } catch (err) {
+        alert(err.message);
+    } finally {
+        submitButton.textContent = originalText;
+        submitButton.disabled = false;
+    }
+}
+
 // Handle form submissions
 loginForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    
+
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
-    
-    // Simple validation
+
     if (!email || !password) {
         alert('Пожалуйста, заполните все поля');
         return;
     }
-    
-    // In a real app, you would send this data to your backend
-    console.log('Login attempt:', { email });
-    
-    // For demo purposes, simulate a successful login
-    simulateSuccessfulAuth('login');
+
+    authRequest('/api/auth/login', { email, password }, e.submitter);
 });
 
 registerForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    
+
     const name = document.getElementById('registerName').value;
     const email = document.getElementById('registerEmail').value;
     const password = document.getElementById('registerPassword').value;
     const passwordConfirm = document.getElementById('registerPasswordConfirm').value;
-    
-    // Simple validation
+
     if (!name || !email || !password || !passwordConfirm) {
         alert('Пожалуйста, заполните все поля');
         return;
     }
-    
+
     if (password !== passwordConfirm) {
         alert('Пароли не совпадают');
         return;
     }
-    
-    // In a real app, you would send this data to your backend
-    console.log('Registration attempt:', { name, email });
-    
-    // For demo purposes, simulate a successful registration
-    simulateSuccessfulAuth('register');
-});
 
-// Simulate successful authentication
-const simulateSuccessfulAuth = (type) => {
-    // Show loading state
-    const submitButton = type === 'login' 
-        ? loginForm.querySelector('button[type="submit"]') 
-        : registerForm.querySelector('button[type="submit"]');
-    
-    const originalText = submitButton.textContent;
-    submitButton.textContent = 'Загрузка...';
-    submitButton.disabled = true;
-    
-    // Simulate API request delay
-    setTimeout(() => {
-        // In a real app, we would store the user data and token
-        localStorage.setItem('auth_token', 'demo_token_' + Date.now());
-        localStorage.setItem('user_email', type === 'login' 
-            ? document.getElementById('loginEmail').value
-            : document.getElementById('registerEmail').value
-        );
-        
-        // Redirect to dashboard
-        window.location.href = 'dashboard.html';
-    }, 1500);
-};
+    authRequest('/api/auth/register', {
+        email,
+        password,
+        first_name: name
+    }, e.submitter);
+});
 
 // Add glass effect for reduced motion preference
 const addReducedMotionGlassEffect = () => {
@@ -246,115 +245,3 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
-
-function initLandingPage() {
-    setupAuth();
-    setupAnimations();
-}
-
-function setupAuth() {
-    const registerButton = document.getElementById('registerButton');
-    const authModal = document.getElementById('authModal');
-    const closeAuthModal = document.getElementById('closeAuthModal');
-    const showRegisterForm = document.getElementById('showRegisterForm');
-    const showLoginForm = document.getElementById('showLoginForm');
-    const loginForm = document.getElementById('loginForm');
-    const registerForm = document.getElementById('registerForm');
-
-    // Показать модальное окно авторизации
-    if (registerButton) {
-        registerButton.addEventListener('click', function() {
-            authModal.classList.add('active');
-            document.getElementById('registerForm').classList.remove('hidden');
-            document.getElementById('loginForm').classList.add('hidden');
-            document.getElementById('authModalTitle').textContent = 'Регистрация';
-        });
-    }
-
-    // Закрыть модальное окно
-    if (closeAuthModal) {
-        closeAuthModal.addEventListener('click', function() {
-            authModal.classList.remove('active');
-        });
-    }
-
-    // Переключение между формами входа и регистрации
-    if (showRegisterForm) {
-        showRegisterForm.addEventListener('click', function(e) {
-            e.preventDefault();
-            loginForm.classList.add('hidden');
-            registerForm.classList.remove('hidden');
-            document.getElementById('authModalTitle').textContent = 'Регистрация';
-        });
-    }
-
-    if (showLoginForm) {
-        showLoginForm.addEventListener('click', function(e) {
-            e.preventDefault();
-            registerForm.classList.add('hidden');
-            loginForm.classList.remove('hidden');
-            document.getElementById('authModalTitle').textContent = 'Вход в систему';
-        });
-    }
-
-    // Обработка отправки формы входа
-    if (loginForm) {
-        loginForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            // Здесь будет логика аутентификации
-            console.log('Login form submitted');
-            
-            // Для демонстрации просто перенаправим на основную страницу
-            window.location.href = 'dashboard.html';
-        });
-    }
-
-    // Обработка отправки формы регистрации
-    if (registerForm) {
-        registerForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            // Здесь будет логика регистрации
-            console.log('Register form submitted');
-            
-            // Проверка совпадения паролей
-            const password = document.getElementById('registerPassword').value;
-            const confirmPassword = document.getElementById('registerPasswordConfirm').value;
-            
-            if (password !== confirmPassword) {
-                alert('Пароли не совпадают');
-                return;
-            }
-            
-            // Для демонстрации просто перенаправим на основную страницу
-            window.location.href = 'dashboard.html';
-        });
-    }
-
-    // Закрытие модального окна при клике вне его
-    window.addEventListener('click', function(e) {
-        if (e.target === authModal) {
-            authModal.classList.remove('active');
-        }
-    });
-}
-
-function setupAnimations() {
-    // Анимация для фона с эффектом параллакса
-    const shapes = document.querySelectorAll('.glass-shape');
-    
-    document.addEventListener('mousemove', function(e) {
-        const x = e.clientX / window.innerWidth;
-        const y = e.clientY / window.innerHeight;
-        
-        shapes.forEach((shape, index) => {
-            const speed = (index + 1) * 20;
-            const offsetX = (0.5 - x) * speed;
-            const offsetY = (0.5 - y) * speed;
-            
-            shape.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
-        });
-    });
-    
-    // Добавляем плавное появление контента
-    document.body.classList.add('loaded');
-} 

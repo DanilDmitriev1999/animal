@@ -17,7 +17,7 @@ export default defineConfig({
     cors: true,
     proxy: {
       '/api': {
-        target: 'http://192.168.64.1:8000',
+        target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false,
         configure: (proxy, options) => {
@@ -30,7 +30,7 @@ export default defineConfig({
         }
       },
       '/ws': {
-        target: 'ws://192.168.64.1:8000',
+        target: 'ws://localhost:8000',
         ws: true,
         changeOrigin: true,
       }
