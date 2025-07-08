@@ -1,92 +1,64 @@
-#### Цель платформы
+# AI Learning UI
 
-Создать диалоговую среду, которая помогает быстро получать новые навыки и переквалифицироваться. Ключ к вовлечённости — персональные треки, ведение AI-наставником (Agentic UX) и отсутствие лишней навигации (Zero-Navigation).
+This is the frontend for the AI Learning platform, built with Next.js 15, React 19, and TypeScript. It features a custom "Glass UI" design system implemented with Tailwind CSS.
 
-**Определения (продуктовые термины)**
+## Getting Started
 
-* **Трек** Тематическая последовательность модулей и практик, адаптирующаяся к целям пользователя.
-* **Conversational UI** Интерфейс, где команды и контент приходят через чат (текст/голос).
-* **Agentic UX** Сценарии, в которых ИИ сам инициирует следующие шаги без ожидания ввода.
-* **Glassmorphism** Полупрозрачные «стеклянные» поверхности c blur-фоном и мягкими световыми акцентами.
+1.  **Install dependencies:**
+    ```bash
+    pnpm install
+    ```
 
----
+2.  **Run the development server:**
+    ```bash
+    pnpm dev
+    ```
 
-#### Ключевые UX-принципы
+3.  **Build for production:**
+    ```bash
+    pnpm build
+    ```
 
-* **Фокус на одном действии** На экране доминирует один объект (трек или чат).
-* **Прогрессивное раскрытие** Сначала концепт, затем углубление, затем практика.
-* **Zero-Navigation** Пользователь видит только то, что важно “сейчас”.
-* **Данные → адаптация** Метрики (Session Length, Completion Rate) питают рекомендации агента.
+4.  **Preview the production build:**
+    ```bash
+    pnpm preview
+    ```
 
----
+## Design System ("Glass UI")
 
-#### Структура интерфейса и страниц
+The UI is built upon a custom design system with a glassmorphism aesthetic. The core of this system is a set of design tokens and utility classes.
 
-| Страница               | Зоны и поведение                                                                                                                                                                                                                                                                                                                            | Особенности верстки                                                                                                                                |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Личный дашборд**     | • Header (логотип, профиль) <br>• *Grid* «Активные треки» — карточки без скролла, равномерно заполняют ширину окна (auto-fit, min 280 px). <br>• Bottom-chat-bar (placeholder — «Спросите меня…»).                                                                                                                                          | При клике на чат-бар разворачивается *overlay* на ≈ 90 % высоты. Верхняя 10 % зона остаётся полупрозрачной для ощущения глубины.                   |
-| **Трек (Course View)** | • **Course Outline** (стеклянная боковая панель, показывается по click/⌘O). <br>• **Lesson Canvas** (основной контент: теория, видео, code-практика). <br>• **Conspect** (вызывается свайпом вправо либо кнопкой «Заметки», открывает стеклянную модаль). <br>• **Chat Sidebar** (по умолчанию свернут; click → раскрытие поверх контента). | Grid-layout: `grid-template-columns: 1fr minmax(320px, 35%)` при большом экране; mobile — полноэкранные стеклянные слои, переключение тап-тасками. |
-| **Маркетплейс треков** | Сетка карточек-трендов с фильтрами (stacked «glass» chips).                                                                                                                                                                                                                                                                                 | Без горизонтального скролла; пагинация сервер-сайд.                                                                                                |
-| **Команд-палет**       | ⌘K / Ctrl K → стеклянное модальное окно 640 × 480 px с быстрыми действиями.                                                                                                                                                                                                                                                                 | backdrop = blur(20 px), border-radius = 16 px.                                                                                                     |
+### Token System
 
----
+The single source of truth for the color palette is `src/tokens/colors.ts`.
 
-#### Компонентная библиотека (ядро)
+To update the theme:
 
-* **GlassCard** варианты: `track-card`, `tip-card`, `lesson-card`.
-* **ChatBubble** `agent` / `user`, auto-fade в режиме «reduced motion».
-* **CourseOutline** вертикальный список модулей с прогресс-индикаторами.
-* **ProgressBar** linear, стеклянный трек, инкремент анимируется.
-* **BottomChatBar** fixed иконка-микрофон, placeholder-input.
-* **OverlayChatPanel** разворачивается, использует same component set.
-* **ConspectModal** markdown-render + кнопка «Отправить в чат».
+1.  Modify a HEX value in the `palette` object in `src/tokens/colors.ts`.
+2.  Convert the new HEX value to its HSL equivalent (you can use an online tool for this).
+3.  Update the corresponding CSS variable in `src/app/globals.css`. The file contains variables for both the light (`:root`) and dark (`.dark`) themes.
 
----
+This manual step is required to keep the theme-switching mechanism provided by `shadcn/ui` intact while maintaining a single source of truth for the color values.
 
-#### Визуальная система
+### Adjusting Glass Parameters
 
-| Группа              | Спецификация                                                                                                                                                                |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Палитра**         | *Base Dark* `#101010`, *Base White* `#FFFFFF`, *Neutral Gray* `#444444` (текст 60 %), **Accent** `#00E0FF` (electric cyan — подчёркивает «технологичность и прозрачность»). |
-| **Стеклянные слои** | `backdrop-filter: blur(20px)`; `background: rgba(255,255,255,0.08)` на тёмной теме; тонкая inner-glow `rgba(255,255,255,0.3)` по периметру (`inset 0 0 2px`).               |
-| **Типографика**     | Inter / SF Pro (300-500); заголовок — 1.25 rem/700; параграф — 1 rem/400.                                                                                                   |
-| **Иконография**     | Stroke 1.5 px, скругл. 2 px, моно-line.                                                                                                                                     |
-| **Motion**          | Fade-in 200 ms (`ease-out`); micro-bounce CTA 120 ms; typing-dots 16 fps.                                                                                                   |
-| **Доступность**     | Контраст текста ≥ 4.5:1; focus-ring — accent outline 2 px; режим `prefers-reduced-motion` → убирает bounce.                                                                 |
+The "glass" effect on components like `GlassCard` is controlled by a few key styles in `tailwind.config.ts`:
 
----
+-   **Shadow:** The `boxShadow.glass` utility controls the inner and outer shadows.
+-   **Background Color:** The `colors.glass` value sets the semi-transparent background. This should have a corresponding value for the light theme when implemented.
+-   **Blur:** The blur effect is applied directly in components using the `backdrop-blur-[20px]` utility class.
+-   **Border Radius:** Card and input rounding can be adjusted via the `borderRadius.card` and `borderRadius.input` values.
 
-#### Поведенческие сценарии и микровзаимодействия
+## Running Tests
 
-* **Расширение чата** BottomChatBar → tap/⌘⏎ → OverlayChatPanel с автопрокруткой; свайп вниз → свернуть.
-* **Сохранить заметку** Long-press на ChatBubble → «капля» стекла вниз, затем иконка-закладки активна.
-* **Краткий отчёт урока** Pull-down в OverlayChatPanel → агент шлёт TL;DR карточку.
-* **Быстрый лайк/дизлайк** Swipe → (- / +) иконка, короткий стеклянный ping.
+This project uses Playwright for end-to-end testing.
 
----
+To run all tests:
+```bash
+pnpm exec playwright test
+```
 
-#### Метрики, встроенные в UX
-
-* **Activation Rate** — подсвечиваем CTA «Завершить первый модуль» до тех пор, пока пользователь не достигнет точки активации.
-* **Completion Rate** — progress-бар трека становится полным стеклянным градиентом и вспыхивает accent-свечением при ≥ 80 %.
-* **Session Length** — agent напоминает «Сделаем перерыв?» при длительном бездействии (> 25 мин).
-
----
-
-#### Deliverables (для генерации)
-
-* **Figma-файл** c токенами (палитра, spacing, shadows), Auto-Layout-компоненты, прототипы: 1440 px Desktop, 390 px Mobile.
-* **Tailwind config** с кастом-токенами (цвета, blur, shadows).
-* **Next.js pages** `/dashboard`, `/track/[id]`, `/marketplace`, `/api/chat`.
-* **Framer Motion spec** (`json`) для key-анимаций.
-* **Storybook** документация основных Glass-компонентов.
-
----
-
-#### Как «чувствуется» стекло
-
-1. **Глубина** Слои полупрозрачны, за ними заметно размытое содержимое страницы.
-2. **Световой обод** Не яркий drop-shadow, а мягкий inner-glow, создающий иллюзию толщины стекла.
-3. **Тактильность** При hover/press карточка слегка «приподнимается» (transform `translateZ(4px)` + сильнее glow).
-
----
+To run tests in UI mode:
+```bash
+pnpm exec playwright test --ui
+```
