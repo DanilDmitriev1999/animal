@@ -1,64 +1,46 @@
 # AI Learning UI
 
-This is the frontend for the AI Learning platform, built with Next.js 15, React 19, and TypeScript. It features a custom "Glass UI" design system implemented with Tailwind CSS.
+## Как подключать нового агента на фронтенде
 
-## Getting Started
+- **Клиент API**: все обращения к бэкенду идут через `src/lib/api.ts`.
+- **Рекомендация**: для каждого нового агента добавляйте один метод в `api` с понятной сигнатурой, без прямых `fetch` из компонентов.
 
-1.  **Install dependencies:**
-    ```bash
-    pnpm install
-    ```
+### Пример: агент планировщика `learning_planner`
 
-2.  **Run the development server:**
-    ```bash
-    pnpm dev
-    ```
-
-3.  **Build for production:**
-    ```bash
-    pnpm build
-    ```
-
-4.  **Preview the production build:**
-    ```bash
-    pnpm preview
-    ```
-
-## Design System ("Glass UI")
-
-The UI is built upon a custom design system with a glassmorphism aesthetic. The core of this system is a set of design tokens and utility classes.
-
-### Token System
-
-The single source of truth for the color palette is `src/tokens/colors.ts`.
-
-To update the theme:
-
-1.  Modify a HEX value in the `palette` object in `src/tokens/colors.ts`.
-2.  Convert the new HEX value to its HSL equivalent (you can use an online tool for this).
-3.  Update the corresponding CSS variable in `src/app/globals.css`. The file contains variables for both the light (`:root`) and dark (`.dark`) themes.
-
-This manual step is required to keep the theme-switching mechanism provided by `shadcn/ui` intact while maintaining a single source of truth for the color values.
-
-### Adjusting Glass Parameters
-
-The "glass" effect on components like `GlassCard` is controlled by a few key styles in `tailwind.config.ts`:
-
--   **Shadow:** The `boxShadow.glass` utility controls the inner and outer shadows.
--   **Background Color:** The `colors.glass` value sets the semi-transparent background. This should have a corresponding value for the light theme when implemented.
--   **Blur:** The blur effect is applied directly in components using the `backdrop-blur-[20px]` utility class.
--   **Border Radius:** Card and input rounding can be adjusted via the `borderRadius.card` and `borderRadius.input` values.
-
-## Running Tests
-
-This project uses Playwright for end-to-end testing.
-
-To run all tests:
-```bash
-pnpm exec playwright test
+1) Добавьте метод в `src/lib/api.ts`:
+```ts
+runLearningPlanner(params: {
+  sessionId?: string
+  query: {
+    title: string
+    description: string
+    goal: string
+    focus: 'theory' | 'practice'
+    tone: 'strict' | 'friendly' | 'motivational' | 'neutral'
+  }
+  memory?: 'backend' | 'inmem'
+}): Promise<{ plan: { modules: string[] }; sources: unknown[] }>
 ```
 
-To run tests in UI mode:
-```bash
-pnpm exec playwright test --ui
+2) Используйте метод в странице/компоненте:
+```ts
+const res = await api.runLearningPlanner({ query: { title, description, goal, focus, tone }, memory: 'inmem' })
+setRoadmap(res.plan.modules.map((text, i) => ({ id: `${Date.now()}_${i}`, text })))
 ```
+
+3) UX‑паттерн для асинхронных агентов:
+- мгновенно переключайтесь на целевую секцию (например, шаг 2 мастера);
+- показывайте спиннер/скелетоны «Агент формирует план…»;
+- по завершении подменяйте плейсхолдеры реальными данными;
+- блокируйте действие «Сохранить/Создать» на время генерации.
+
+### Окружение
+Создайте `frontend/.env.local`:
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_FIXED_DEVICE_ID=dev-device
+```
+
+### Где смотреть существующую интеграцию
+- Метод клиента: `src/lib/api.ts` → `runLearningPlanner`
+- UI мастера создания трека: `src/app/tracks/create/page.tsx`

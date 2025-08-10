@@ -150,31 +150,30 @@
     background: linear-gradient(135deg, #000000 0%, #111827 100%);
   }
   
-  /* AICODE-NOTE: Enhanced glass morphism styles with 3D volume */
+  /* AICODE-NOTE: Glass morphism updated to floating, soft dual-shadow on all sides */
   .glass-morphism {
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: rgba(255, 255, 255, 0.1);
-    box-shadow: 
-      /* Outer shadows for depth */
-      0 8px 32px rgba(0, 0, 0, 0.12),
-      0 4px 16px rgba(0, 0, 0, 0.08),
-      /* Inner shadows for 3D glass effect */
-      inset -30px -30px 50px rgba(255, 255, 255, 0.7),
-      inset 30px 30px 50px rgba(13, 39, 80, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.10);
+    /* Softer, smaller-radius dual outer shadows to emulate floating card */
+    box-shadow:
+      0 18px 36px rgba(0, 0, 0, 0.12),
+      0 6px 12px rgba(0, 0, 0, 0.06),
+      /* subtle glow to lift edges */
+      0 1px 0 rgba(255, 255, 255, 0.6) inset,
+      0 -1px 0 rgba(0, 0, 0, 0.05) inset;
   }
   
   .dark .glass-morphism {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.15);
-    box-shadow: 
-      /* Outer shadows for depth */
-      0 8px 32px rgba(0, 0, 0, 0.4),
-      0 4px 16px rgba(0, 0, 0, 0.3),
-      /* Inner shadows for 3D glass effect - adjusted for dark theme */
-      inset -20px -20px 40px rgba(255, 255, 255, 0.1),
-      inset 20px 20px 40px rgba(0, 0, 0, 0.5);
+    /* All-around dual shadow with reduced radius for hovering feel */
+    box-shadow:
+      0 18px 36px rgba(0, 0, 0, 0.45),
+      0 8px 18px rgba(0, 0, 0, 0.35),
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 -1px 0 rgba(0, 0, 0, 0.4) inset;
   }
 }
 

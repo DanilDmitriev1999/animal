@@ -1,11 +1,11 @@
-'use client'
+
 
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
-import { useGlassTheme } from "@/hooks/useGlassTheme";
 import React from "react";
+import { ThemeApplier } from "./ThemeApplier";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,14 +28,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { theme } = useGlassTheme();
-
-  React.useEffect(() => {
-    const root = window.document.documentElement
-    root.classList.remove('light', 'dark')
-    root.classList.add(theme)
-  }, [theme])
-
   return (
     <html lang="ru" suppressHydrationWarning>
       <body
@@ -45,6 +37,7 @@ export default function RootLayout({
             geistMono.variable
         )}
       >
+        <ThemeApplier />
         {children}
       </body>
     </html>

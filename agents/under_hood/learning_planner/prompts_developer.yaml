@@ -1,0 +1,8 @@
+id: learning_planner.developer
+versions:
+  v1: |
+    Составь краткий учебный план по теме: {topic}. 3-5 модулей, короткие названия.
+meta:
+  owner: core
+
+

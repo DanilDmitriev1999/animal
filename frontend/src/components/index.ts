@@ -9,3 +9,4 @@ export * from './ui/tabs';
 export * from './ui/button';
 export * from './ui/input';
 export * from './ui/breadcrumb'; 
+export * from './ui/textarea';

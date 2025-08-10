@@ -6,13 +6,23 @@ import { cn } from "@/lib/utils"
 
 // AICODE-NOTE: Enhanced glass card variants with better theme support
 const glassCardVariants = cva(
-  "backdrop-blur-[10px] rounded-[34px] border transition-all duration-300",
+  "backdrop-blur-[10px] border transition-all duration-300",
   {
     variants: {
+      shape: {
+        // AICODE-NOTE: Slightly smaller radius to enhance floating feel
+        card: "rounded-[24px]",
+        pill: "rounded-full",
+        none: "rounded-none",
+      },
       variant: {
         default: "glass-morphism",
         strong: "glass-morphism bg-opacity-80 dark:bg-opacity-10",
         subtle: "backdrop-blur-[12px] bg-white/10 dark:bg-white/5 border-white/20 dark:border-white/10",
+        // AICODE-NOTE: Neumorphic surface (no glass). Subtle even drop shadow; no white glow in dark theme.
+        neumorph:
+          // AICODE-NOTE: Уменьшены радиусы тени для тесного контейнера сайдбара
+          "bg-white dark:bg-[#0F141A] border border-black/5 dark:border-white/5 shadow-[0_4px_12px_rgba(0,0,0,0.10)] dark:shadow-[0_6px_18px_rgba(0,0,0,0.45)]",
       },
       size: {
         default: "",
@@ -22,6 +32,7 @@ const glassCardVariants = cva(
       }
     },
     defaultVariants: {
+      shape: "card",
       variant: "default",
       size: "default",
     },
@@ -39,7 +50,7 @@ const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
     const Comp = asChild ? Slot : "div"
     return (
       <Comp
-        className={cn(glassCardVariants({ variant, size }), className)}
+        className={cn(glassCardVariants({ ...(props as any), variant, size }), className)}
         ref={ref}
         {...props}
       />
