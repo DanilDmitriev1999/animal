@@ -116,3 +116,5 @@ tmp/
 temp/
 *.tmp 
 *.mdc
+*.png
+*.jpg
