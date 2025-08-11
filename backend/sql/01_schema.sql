@@ -94,19 +94,33 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 );
 CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_created ON chat_messages(thread_id, created_at);
 
--- Synopses: one live + many snapshots per session
-CREATE TYPE synopsis_origin AS ENUM ('live', 'snapshot', 'imported');
+-- Synopses: container + versioned history
+CREATE TYPE synopsis_version_kind AS ENUM ('generated', 'edited', 'imported');
 
 CREATE TABLE IF NOT EXISTS synopses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id UUID NOT NULL REFERENCES track_sessions(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
-  items_json JSONB NOT NULL DEFAULT '[]'::jsonb,
-  origin synopsis_origin NOT NULL DEFAULT 'live',
+  current_version_id UUID,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  UNIQUE (session_id)
 );
-CREATE INDEX IF NOT EXISTS idx_synopses_session_origin ON synopses(session_id, origin);
+
+CREATE TABLE IF NOT EXISTS synopsis_versions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  synopsis_id UUID NOT NULL REFERENCES synopses(id) ON DELETE CASCADE,
+  version_num INT NOT NULL,
+  items_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+  kind synopsis_version_kind NOT NULL DEFAULT 'generated',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (synopsis_id, version_num)
+);
+
+ALTER TABLE synopses
+  ADD CONSTRAINT syn_current_version_fk
+  FOREIGN KEY (current_version_id) REFERENCES synopsis_versions(id)
+  ON DELETE SET NULL;
 
 COMMIT;
 

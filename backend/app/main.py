@@ -21,6 +21,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 import os
+import re
+import logging
+from urllib.parse import unquote
 from typing import Any, Dict, Iterable, List, Optional, AsyncIterator
 
 from fastapi import FastAPI, HTTPException, Path, Body, Query, Request
@@ -153,6 +156,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+logger = logging.getLogger("ai_learning.api")
+
+
+@app.middleware("http")
+async def decoded_path_logger(request: Request, call_next):  # pragma: no cover - простое логирование
+    try:
+        path_decoded = unquote(str(request.url.path))
+        logger.info("%s %s", request.method, path_decoded)
+    except Exception:
+        pass
+    response = await call_next(request)
+    return response
+
 
 @app.get("/health")
 def health() -> Dict[str, str]:
@@ -194,6 +210,69 @@ def get_track(slug: str = Path(..., min_length=1)) -> TrackOut:
             row = cur.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Track not found")
+    return TrackOut(**row)
+
+
+class CreateTrackIn(BaseModel):
+    title: str
+    description: Optional[str] = None
+    goal: Optional[str] = None
+    slug: Optional[str] = None
+    roadmap: Optional[List[str]] = None
+
+
+def _slugify_base(value: str) -> str:
+    base = value.strip().lower()
+    base = re.sub(r"\s+", "-", base)
+    base = re.sub(r"[^\w\-]", "", base)
+    base = re.sub(r"-+", "-", base).strip("-")
+    return base or "track"
+
+
+@app.post("/tracks", response_model=TrackOut)
+def create_track(body: CreateTrackIn) -> TrackOut:
+    title = body.title
+    description = body.description or None
+    goal = body.goal or None
+    desired_slug = body.slug or _slugify_base(title)
+    roadmap = [t for t in (body.roadmap or []) if isinstance(t, str) and t.strip()]
+
+    with DB() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Подбираем уникальный slug
+            slug = desired_slug
+            suffix = 2
+            while True:
+                cur.execute("SELECT 1 FROM tracks WHERE slug = %s", (slug,))
+                if cur.fetchone() is None:
+                    break
+                slug = f"{desired_slug}-{suffix}"
+                suffix += 1
+
+            # Вставка трека
+            cur.execute(
+                """
+                INSERT INTO tracks (slug, title, description, goal)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id::text AS id, slug, title, description, goal
+                """,
+                (slug, title, description, goal),
+            )
+            row = cur.fetchone()
+            track_id = row["id"]
+
+            # Вставка роадмапа
+            position = 1
+            for text in roadmap:
+                cur.execute(
+                    """
+                    INSERT INTO track_roadmap_items (track_id, position, text, done)
+                    VALUES (%s::uuid, %s, %s, false)
+                    """,
+                    (track_id, position, text.strip()),
+                )
+                position += 1
+
     return TrackOut(**row)
 
 
@@ -356,6 +435,90 @@ def post_message(
 
 
 # ----------------------------------------------------------------------------
+# Synopsis (live + versions)
+# ----------------------------------------------------------------------------
+
+
+class SynopsisIn(BaseModel):
+    title: str
+    items: List[Dict[str, Any]]
+
+
+class SynopsisOut(BaseModel):
+    title: str
+    items: List[Dict[str, Any]]
+    lastUpdated: Optional[str] = None
+
+
+@app.get("/sessions/{session_id}/synopsis", response_model=SynopsisOut)
+def get_synopsis(session_id: str = Path(...)) -> SynopsisOut:
+    with DB() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT s.title,
+                       sv.items_json AS items,
+                       to_char(sv.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS last_updated
+                FROM synopses s
+                JOIN synopsis_versions sv ON sv.id = s.current_version_id
+                WHERE s.session_id = %s::uuid
+                """,
+                (session_id,),
+            )
+            row = cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Synopsis not found")
+    return SynopsisOut(title=row["title"], items=row["items"], lastUpdated=row["last_updated"])  # type: ignore[index]
+
+
+@app.post("/sessions/{session_id}/synopsis", response_model=SynopsisOut)
+def upsert_synopsis(session_id: str, body: SynopsisIn) -> SynopsisOut:
+    with DB() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Ensure container
+            cur.execute("SELECT id::text AS id FROM synopses WHERE session_id = %s::uuid", (session_id,))
+            row = cur.fetchone()
+            if row is None:
+                cur.execute(
+                    """
+                    INSERT INTO synopses (session_id, title)
+                    VALUES (%s::uuid, %s)
+                    RETURNING id::text AS id
+                    """,
+                    (session_id, body.title),
+                )
+                syn_id = cur.fetchone()["id"]
+            else:
+                syn_id = row["id"]
+
+            # New version number
+            cur.execute("SELECT COALESCE(MAX(version_num), 0) + 1 AS v FROM synopsis_versions WHERE synopsis_id = %s::uuid", (syn_id,))
+            v = cur.fetchone()["v"]
+
+            # Insert version
+            cur.execute(
+                """
+                INSERT INTO synopsis_versions (synopsis_id, version_num, items_json, kind)
+                VALUES (%s::uuid, %s, %s::jsonb, 'generated')
+                RETURNING id::text AS id, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS created
+                """,
+                (syn_id, v, json.dumps(body.items)),
+            )
+            version_row = cur.fetchone()
+
+            # Update pointer
+            cur.execute(
+                """
+                UPDATE synopses SET title = %s, current_version_id = %s::uuid, updated_at = now()
+                WHERE id = %s::uuid
+                """,
+                (body.title, version_row["id"], syn_id),
+            )
+
+            return SynopsisOut(title=body.title, items=body.items, lastUpdated=version_row["created"])  # type: ignore[index]
+
+
+# ----------------------------------------------------------------------------
 # Агент: JSON и SSE
 # ----------------------------------------------------------------------------
 
@@ -402,32 +565,7 @@ async def run_learning_planner_plan(body: RunPlannerIn) -> Dict[str, Any]:
         memory = InMemoryMemory()
         session_id = body.session_id or "dev-session"
 
-    # LLM: пытаемся создать реальный клиент, иначе — мок
-    def _create_llm() -> Any:
-        if os.getenv("OPENAI_API_KEY") and os.getenv("OPENAI_BASE_URL"):
-            try:
-                return OpenAILLM()
-            except Exception:
-                pass
-
-        class _StubLLM:
-            def __init__(self, q: Dict[str, Any]):
-                self.q = q
-
-            async def structured_output(self, messages, *, schema, model=None, temperature=None):  # type: ignore[no-untyped-def]
-                focus = str(self.q.get("focus", "theory"))
-                modules: List[str] = [
-                    "Вступление и постановка задачи",
-                    "Ключевые понятия и термины",
-                    "Глубокая теория с примерами" if focus == "theory" else "Практикум: первая мини‑задача",
-                    "Типичные ошибки и как их избегать",
-                    "Проект: применяем знания" if focus == "practice" else "Обзор дополнительных материалов",
-                ]
-                return LLMResponse(result={"modules": modules})
-
-        return _StubLLM(body.query)
-
-    llm = _create_llm()
+    llm = OpenAILLM()
 
     # Агент
     agent = get_agent("learning_planner", "v1", memory=memory, llm=llm)
@@ -439,6 +577,97 @@ async def run_learning_planner_plan(body: RunPlannerIn) -> Dict[str, Any]:
 
     if not final_payload:
         raise HTTPException(status_code=500, detail="Agent did not produce a result")
+
+    return final_payload
+
+
+class RunSynopsisIn(BaseModel):
+    session_id: Optional[str] = None
+    query: Dict[str, Any]
+    memory: Optional[str] = Field(default="inmem", pattern="^(backend|inmem)$")
+
+
+@app.post("/agents/synopsis_manager/v1/synopsis")
+async def run_synopsis_manager_synopsis(body: RunSynopsisIn) -> Dict[str, Any]:
+    if not _AGENTS_AVAILABLE:
+        raise HTTPException(status_code=501, detail="Agents package is not available")
+
+    # Память
+    if body.memory == "backend":
+        memory = BackendMemory()
+        session_id = body.session_id or "dev-session"
+    else:
+        memory = InMemoryMemory()
+        session_id = body.session_id or "dev-session"
+
+
+    llm = OpenAILLM()
+
+    agent = get_agent("synopsis_manager", "v1", memory=memory, llm=llm)
+
+    final_payload: Optional[Dict[str, Any]] = None
+    async for ev in run_agent_with_events(agent, session_id=session_id, query=body.query):
+        if ev.event == "final_result":
+            final_payload = ev.payload or {}
+
+    if not final_payload:
+        raise HTTPException(status_code=500, detail="Agent did not produce a result")
+
+    # AICODE-NOTE: Сохраняем live‑конспект в БД (версионная схема)
+    synopsis = (final_payload or {}).get("synopsis") or {}
+    title = str(((body.query.get("params") or body.query).get("title")) or "Конспект")
+    items = synopsis.get("items", [])
+    with DB() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Проверим, что сессия существует (иначе могли использовать inmem)
+            cur.execute(
+                """
+                SELECT ts.id::text AS id
+                FROM track_sessions ts
+                WHERE ts.id = %s::uuid
+                """,
+                (session_id,),
+            )
+            if cur.fetchone() is None:
+                return final_payload
+
+            # Контейнер синопсиса
+            cur.execute("SELECT id::text AS id FROM synopses WHERE session_id = %s::uuid", (session_id,))
+            row = cur.fetchone()
+            if row is None:
+                cur.execute(
+                    """
+                    INSERT INTO synopses (session_id, title)
+                    VALUES (%s::uuid, %s)
+                    RETURNING id::text AS id
+                    """,
+                    (session_id, title),
+                )
+                syn_id = cur.fetchone()["id"]
+            else:
+                syn_id = row["id"]
+
+            # Следующий номер версии
+            cur.execute(
+                "SELECT COALESCE(MAX(version_num), 0) + 1 AS v FROM synopsis_versions WHERE synopsis_id = %s::uuid",
+                (syn_id,),
+            )
+            v = cur.fetchone()["v"]
+
+            # Новая версия и перенос указателя current_version_id
+            cur.execute(
+                """
+                INSERT INTO synopsis_versions (synopsis_id, version_num, items_json, kind)
+                VALUES (%s::uuid, %s, %s::jsonb, 'generated')
+                RETURNING id::text AS id
+                """,
+                (syn_id, v, json.dumps(items)),
+            )
+            ver_id = cur.fetchone()["id"]
+            cur.execute(
+                "UPDATE synopses SET title = %s, current_version_id = %s::uuid, updated_at = now() WHERE id = %s::uuid",
+                (title, ver_id, syn_id),
+            )
 
     return final_payload
 
@@ -462,32 +691,7 @@ async def run_agent_sse(
         mem = InMemoryMemory()
         session_id = body.get("session_id") or "dev-session"
 
-    # LLM (реальный или мок)
-    def _create_llm() -> Any:
-        if os.getenv("OPENAI_API_KEY") and os.getenv("OPENAI_BASE_URL"):
-            try:
-                return OpenAILLM()
-            except Exception:
-                pass
-
-        class _StubLLM:
-            def __init__(self, q: Dict[str, Any]):
-                self.q = q
-
-            async def structured_output(self, messages, *, schema, model=None, temperature=None):  # type: ignore[no-untyped-def]
-                focus = str(self.q.get("focus", "theory"))
-                modules: List[str] = [
-                    "Вступление и постановка задачи",
-                    "Ключевые понятия и термины",
-                    "Глубокая теория с примерами" if focus == "theory" else "Практикум: первая мини‑задача",
-                    "Типичные ошибки и как их избегать",
-                    "Проект: применяем знания" if focus == "practice" else "Обзор дополнительных материалов",
-                ]
-                return LLMResponse(result={"modules": modules})
-
-        return _StubLLM(body.get("query", {}))
-
-    llm = _create_llm()
+    llm = OpenAILLM()
 
     agent = get_agent(agent_id, version, memory=mem, llm=llm)
 

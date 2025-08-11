@@ -44,3 +44,39 @@ NEXT_PUBLIC_FIXED_DEVICE_ID=dev-device
 ### Где смотреть существующую интеграцию
 - Метод клиента: `src/lib/api.ts` → `runLearningPlanner`
 - UI мастера создания трека: `src/app/tracks/create/page.tsx`
+
+### Пример: агент конспекта `synopsis_manager`
+
+1) Добавьте метод в `src/lib/api.ts` (уже добавлен: `runSynopsisManager`). Сигнатура:
+```ts
+runSynopsisManager(params: {
+  sessionId?: string
+  query: {
+    action: 'create' | 'update'
+    params: {
+      title: string
+      description: string
+      goal: string
+      focus: 'theory' | 'practice'
+      tone: 'strict' | 'friendly' | 'motivational' | 'neutral'
+    }
+    plan?: string[]
+    synopsis?: unknown[]
+    instructions?: string | null
+  }
+  memory?: 'backend' | 'inmem'
+}): Promise<{ synopsis: { items: any[]; lastUpdated?: string | null }; sources: unknown[] }>
+```
+
+2) Пример использования (после подтверждения роадмапа):
+```ts
+const res = await api.runSynopsisManager({
+  query: {
+    action: 'create',
+    params: { title, description, goal, focus, tone },
+    plan: roadmap.map(r => r.text)
+  },
+  memory: 'inmem'
+})
+// res.synopsis.items — данные для LiveSynopsis
+```
