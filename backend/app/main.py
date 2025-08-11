@@ -30,6 +30,7 @@ from fastapi import FastAPI, HTTPException, Path, Body, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
+from starlette.responses import JSONResponse
 
 # AICODE-NOTE: psycopg2 пул соединений и словарный курсор
 import psycopg2
@@ -535,6 +536,14 @@ try:
 except Exception:  # pragma: no cover - пакет агентов может быть недоступен
     _AGENTS_AVAILABLE = False
 
+try:
+    # AICODE-NOTE: Очередь фоновых заданий (Redis/RQ)
+    from backend.worker.queue import get_redis_and_queue
+    from backend.worker.tasks import run_agent_job
+    _JOBS_AVAILABLE = True
+except Exception:
+    _JOBS_AVAILABLE = False
+
 
 @app.on_event("startup")
 def _agents_autodiscover_startup() -> None:  # pragma: no cover - простая инициализация
@@ -588,9 +597,38 @@ class RunSynopsisIn(BaseModel):
 
 
 @app.post("/agents/synopsis_manager/v1/synopsis")
-async def run_synopsis_manager_synopsis(body: RunSynopsisIn) -> Dict[str, Any]:
+async def run_synopsis_manager_synopsis(
+    body: RunSynopsisIn,
+    mode: str = Query("sync", pattern="^(background|sync)$"),
+) -> Dict[str, Any]:
     if not _AGENTS_AVAILABLE:
         raise HTTPException(status_code=501, detail="Agents package is not available")
+
+    # AICODE-NOTE: background режим — кладём задачу в очередь и сразу возвращаем 202 + jobId
+    if mode == "background":
+        if not _JOBS_AVAILABLE:
+            raise HTTPException(status_code=501, detail="Jobs/worker is not available")
+        try:
+            _, rq_queue = get_redis_and_queue()
+            from os import getenv
+            job_timeout = int(getenv("AGENT_JOB_TIMEOUT", "900"))
+            result_ttl = int(getenv("AGENT_RESULT_TTL", "600"))
+            job = rq_queue.enqueue(
+                run_agent_job,
+                {
+                    "agent_id": "synopsis_manager",
+                    "version": "v1",
+                    "session_id": body.session_id,
+                    "memory": body.memory or "inmem",
+                    "query": body.query,
+                    "apply_side_effects": True,
+                },
+                job_timeout=job_timeout,
+                result_ttl=result_ttl,
+            )
+            return JSONResponse(status_code=202, content={"jobId": job.id})
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to enqueue job: {e}")
 
     # Память
     if body.memory == "backend":
@@ -710,6 +748,95 @@ async def run_agent_sse(
             yield "data: " + json.dumps({"event": "error", "payload": {"message": str(e)}}) + "\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+# ----------------------------------------------------------------------------
+# Jobs API: enqueue + status (Redis/RQ, без таблицы в БД)
+# ----------------------------------------------------------------------------
+
+
+class EnqueueAgentJobIn(BaseModel):
+    session_id: Optional[str] = None
+    memory: Optional[str] = Field(default="inmem", pattern="^(backend|inmem)$")
+    query: Dict[str, Any]
+    apply_side_effects: Optional[bool] = True
+
+
+class EnqueueAgentJobOut(BaseModel):
+    jobId: str
+
+
+@app.post("/jobs/agents/{agent_id}/{version}", response_model=EnqueueAgentJobOut, status_code=202)
+def enqueue_agent_job(agent_id: str, version: str, body: EnqueueAgentJobIn) -> EnqueueAgentJobOut:
+    if not _JOBS_AVAILABLE:
+        raise HTTPException(status_code=501, detail="Jobs/worker is not available")
+    try:
+        _, rq_queue = get_redis_and_queue()
+        from os import getenv
+        job_timeout = int(getenv("AGENT_JOB_TIMEOUT", "900"))
+        result_ttl = int(getenv("AGENT_RESULT_TTL", "600"))
+        job = rq_queue.enqueue(
+            run_agent_job,
+            {
+                "agent_id": agent_id,
+                "version": version,
+                "session_id": body.session_id,
+                "memory": body.memory or "inmem",
+                "query": body.query,
+                "apply_side_effects": bool(body.apply_side_effects) if body.apply_side_effects is not None else True,
+            },
+            job_timeout=job_timeout,
+            result_ttl=result_ttl,
+        )
+        return EnqueueAgentJobOut(jobId=job.id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to enqueue job: {e}")
+
+
+class JobStatusOut(BaseModel):
+    status: str
+    result: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+
+
+@app.get("/jobs/{job_id}", response_model=JobStatusOut)
+def get_job_status(job_id: str) -> JobStatusOut:
+    if not _JOBS_AVAILABLE:
+        raise HTTPException(status_code=501, detail="Jobs/worker is not available")
+    try:
+        from rq.job import Job  # type: ignore
+        redis, _ = get_redis_and_queue()
+        job = Job.fetch(job_id, connection=redis)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    raw = job.get_status() or "queued"
+    # AICODE-NOTE: Нормализуем статус к контракту API
+    if raw in {"queued", "scheduled", "deferred"}:
+        status = "queued"
+    elif raw in {"started"}:
+        status = "running"
+    elif raw in {"finished"}:
+        status = "done"
+    elif raw in {"failed", "stopped", "canceled"}:
+        status = "failed"
+    else:
+        status = raw
+
+    result: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    if status == "done":
+        try:
+            result = job.result if isinstance(job.result, dict) else None
+        except Exception:
+            result = None
+    if status == "failed":
+        try:
+            error = (job.exc_info or "").splitlines()[-1] if job.exc_info else "Job failed"
+        except Exception:
+            error = "Job failed"
+
+    return JobStatusOut(status=status, result=result, error=error)
 
 
 # ----------------------------------------------------------------------------

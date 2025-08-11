@@ -93,6 +93,13 @@ Message { id: string, role: "user"|"assistant"|"tool", content: string, created_
 - `GET /sessions/{sessionId}/synopsis` → текущая live‑версия: `{ title, items, lastUpdated }`
 - `POST /sessions/{sessionId}/synopsis` → создаёт новую версию и назначает её текущей
 
+#### Фоновая генерация конспекта через агента
+
+- JSON: `POST /agents/synopsis_manager/v1/synopsis?mode=background|sync`
+  - По умолчанию `mode=sync` (синхронная работа, как раньше). При `mode=background` — задание ставится в очередь Redis/RQ и возвращается `202 { jobId }`.
+  - Тело и результат те же, что и для синхронного вызова.
+  - Побочный эффект при завершении фонового задания: новая live‑версия сохраняется в БД, как и при sync‑режиме.
+
 ## Контракты
 - `users.device_id` уникален; 1 сессия на пару `(user_id, track_id)`.
 - Для сессии всегда есть ветки `chat|practice|simulation`.
@@ -179,7 +186,8 @@ echo '{"role":"user","content":"Привет!"}' \
     }
   }
   ```
-  - Ответ: `{ "synopsis": { "items": [...], "lastUpdated": "YYYY-MM-DD HH:MM" }, "sources": [] }`
+  - Ответ (sync): `{ "synopsis": { "items": [...], "lastUpdated": "YYYY-MM-DD HH:MM" }, "sources": [] }`
+  - Ответ (background): `202 { "jobId": "..." }`
   - Побочный эффект: сохранение новой live‑версии в БД (`synopses/synopsis_versions`).
 
 - SSE (универсальный): `POST /run/agent/{id}/{version}?memory=backend|inmem`
@@ -224,9 +232,10 @@ curl -sX POST http://localhost:8000/agents/synopsis_manager/v1/synopsis \
 
 3) Выберите способ экспонировать в API:
    - Быстро сразу: используйте универсальный SSE‑маршрут `POST /run/agent/{id}/{version}` (ничего добавлять в API не нужно).
-   - Удобный JSON‑обёртчик: добавьте тонкий маршрут в `backend/app/main.py`, который:
+    - Удобный JSON‑обёртчик (sync/async): добавьте тонкий маршрут в `backend/app/main.py`, который:
      - описывает `pydantic`‑вход, собирает `memory=BackendMemory|InMemoryMemory`, создаёт LLM (реальный `OpenAILLM` или мок),
-     - запускает `run_agent_with_events(agent, session_id=..., **payload)` и возвращает `payload` из события `final_result`.
+      - запускает `run_agent_with_events(agent, session_id=..., **payload)` и возвращает `payload` из события `final_result` (sync),
+      - или ставит задачу в Redis/RQ и возвращает `202 { jobId }` (background).
 
 Минимальный контракт JSON‑обёртки:
 ```json
@@ -259,5 +268,24 @@ NEXT_PUBLIC_FIXED_DEVICE_ID=dev-device
 2. Переходит по карточке → `/tracks/{slug}`:
    - фронт запрашивает `GET /tracks/{slug}`, `GET /tracks/{slug}/roadmap`, `POST /sessions` (по фиксированному deviceId), затем `GET /sessions/{id}/messages/{tab}` для всех трёх табов.
 3. Пользователь пишет сообщение в любую вкладку → фронт отправляет `POST /sessions/{id}/messages/{tab}` и сразу добавляет его в UI.
+4. Генерация конспекта: фронт может вызвать `POST /agents/synopsis_manager/v1/synopsis?mode=background` → получит `jobId` и начнёт поллинг `GET /jobs/{jobId}` или сразу `GET /sessions/{sessionId}/synopsis`.
+
+### Jobs API (Redis/RQ, без таблицы в БД)
+
+- `POST /jobs/agents/{id}/{version}` → 202 `{ jobId }` — поставить выполнение агента в очередь
+- `GET /jobs/{jobId}` → `{ status: queued|running|done|failed, result?, error? }`
+
+Пример enqueue + статус:
+```bash
+curl -sX POST http://localhost:8000/jobs/agents/synopsis_manager/v1 \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "session_id": "dev-s1",
+    "memory": "inmem",
+    "query": { "action": "create", "params": { "title": "Intro", "description": "...", "goal": "...", "focus": "theory", "tone": "friendly" }, "plan": ["Введение"] }
+  }' | jq
+
+curl -s http://localhost:8000/jobs/<JOB_ID> | jq
+```
 
 

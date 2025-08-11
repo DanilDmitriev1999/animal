@@ -108,6 +108,30 @@ const TrackPage = ({ params }: { params: Promise<{ slug: string }> }) => {
     setSynopsisGenerating(true)
     setSynopsisItems([{ type: 'note', text: 'Формируется первоначальный конспект…' } as any])
     ;(async () => {
+      const startBackground = async () => {
+        await api.runSynopsisManagerBackground({
+          sessionId,
+          query: {
+            action: 'create',
+            params: { title: track.title, description: track.description ?? '', goal: track.goal ?? '', focus: 'theory', tone: 'friendly' },
+            plan: roadmap.map(r => r.title),
+          },
+          memory: 'inmem',
+        })
+        const sleep = (ms: number) => new Promise(res => setTimeout(res, ms))
+        for (let i = 0; i < 45; i++) {
+          try {
+            const syn = await api.getLiveSynopsis(sessionId)
+            if (syn && Array.isArray(syn.items) && syn.items.length > 0) {
+              setSynopsisItems(syn.items as any)
+              setLastUpdatedAt(new Date(syn.lastUpdated || Date.now()))
+              break
+            }
+          } catch {}
+          await sleep(2000)
+        }
+      }
+
       try {
         // Сначала пробуем взять live-версию из БД
         const existing = await api.getLiveSynopsis(sessionId)
@@ -115,31 +139,18 @@ const TrackPage = ({ params }: { params: Promise<{ slug: string }> }) => {
           setSynopsisItems(existing.items as any)
           setLastUpdatedAt(new Date(existing.lastUpdated || Date.now()))
         } else {
-          // Если нет — один раз генерируем и БЭК сохранит live-конспект
-          const res = await api.runSynopsisManager({
-            sessionId,
-            query: {
-              action: 'create',
-              params: { title: track.title, description: track.description ?? '', goal: track.goal ?? '', focus: 'theory', tone: 'friendly' },
-              plan: roadmap.map(r => r.title),
-            },
-            memory: 'inmem',
-          })
-          setSynopsisItems((res.synopsis?.items ?? []) as any)
-          setLastUpdatedAt(new Date())
+          await startBackground()
         }
       } catch (e) {
-        // Если маршрут сино́псиса ещё не доступен — тихо попробуем сгенерировать
-        try {
-          const res = await api.runSynopsisManager({
-            sessionId,
-            query: { action: 'create', params: { title: track.title, description: track.description ?? '', goal: track.goal ?? '', focus: 'theory', tone: 'friendly' }, plan: roadmap.map(r => r.title) },
-            memory: 'inmem',
-          })
-          setSynopsisItems((res.synopsis?.items ?? []) as any)
-          setLastUpdatedAt(new Date())
-        } catch {
-          setSynopsisItems([{ type: 'note', text: 'Не удалось сгенерировать конспект. Попробуйте позже.' } as any])
+        // Если 404 — сино́псис ещё не создан: запускаем фоновую генерацию
+        if (String(e).includes('404')) {
+          try {
+            await startBackground()
+          } catch {
+            setSynopsisItems([{ type: 'note', text: 'Не удалось инициировать фоновую генерацию конспекта. Попробуйте позже.' } as any])
+          }
+        } else {
+          setSynopsisItems([{ type: 'note', text: 'Не удалось инициировать фоновую генерацию конспекта. Попробуйте позже.' } as any])
         }
       } finally {
         setSynopsisGenerating(false)

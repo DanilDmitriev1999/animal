@@ -5,29 +5,26 @@
 - Гарантировать сохранение доменных артефактов (например, `synopsis`) в БД и возможность безопасного повторного запуска.
 
 ## Дизайн (высокоуровневый)
-- Вводим очередь заданий (Redis + RQ или Dramatiq; базово RQ).
+- Вводим очередь заданий (Redis + RQ). Статусы задач и результаты живут в Redis (TTL), без сохранения в БД.
 - Выделяем отдельный процесс worker (`agents-worker`), который исполняет задания: запускает агента через общий `run_agent_with_events`, обрабатывает события, сохраняет итог в доменные таблицы.
 - HTTP-роуты на бэкенде возвращают 202 Accepted + `jobId`, не дожидаясь результата. Фронт наблюдает статус задания и/или читает готовый доменный артефакт.
 
 ## БД (новые таблицы)
-- `jobs`:
-  - `id UUID PK`, `type TEXT` (напр. `agent:synopsis_manager`), `status TEXT` (`queued|running|done|failed`), `payload_json JSONB`, `result_json JSONB`, `error_text TEXT`, `session_id UUID NULL`, `created_at/updated_at`.
-  - Индексы: `(status, created_at)`, `(session_id, type)`.
-- (Опционально) `job_locks`/`idempotency_keys` — предотвращение дублей по ключу `agent+session`.
+- Не требуются для статусов задач. Статусы и результаты — только в Redis с TTL. Доменные артефакты (например, synopsis) сохраняются в свои таблицы, как и раньше.
 
 ## Queue/Worker
 - Пакет `backend/worker/`:
   - `queue.py` — обёртка RQ (Redis URL из `REDIS_URL`).
-  - `tasks.py` — функции: `run_agent_job(agent_id, version, session_id, query, memory)` → выполняет `run_agent_with_events` и сохраняет итог в БД (как уже сделано для `synopsis`).
-  - Команда запуска: `make worker` → `python -m backend.worker.run`.
-- Конфиг: `AGENT_WORKER_CONCURRENCY`, `AGENT_JOB_TTL`, `AGENT_JOB_RETRIES`.
+  - `tasks.py` — функция `run_agent_job(payload)` → запускает агента и возвращает финальный payload; при необходимости применяет доменные побочные эффекты (например, запись live‑версии синопсиса).
+  - `run.py` — точка входа `rq.Worker`.
+- Конфиг: `AGENT_QUEUE`, `AGENT_JOB_TIMEOUT`, `AGENT_RESULT_TTL`.
 
 ## Backend API
 - Новый маршрут постановки в очередь:
-  - `POST /jobs/agents/{id}/{version}` → тело `{ session_id, query, memory }` → 202 `{ jobId }`.
+  - `POST /jobs/agents/{id}/{version}` → тело `{ session_id, query, memory, apply_side_effects? }` → 202 `{ jobId }`.
 - Чтение статуса:
   - `GET /jobs/{jobId}` → `{ status, error?, result? }`.
-- Для `synopsis_manager`: оставить существующий JSON‑роут, но добавить query‑параметр `?mode=background|sync` (по умолчанию `background`), который кладёт задание в очередь и возвращает `jobId`.
+- Для `synopsis_manager`: добавить query‑параметр `?mode=background|sync`. В `background` — кладём задачу в очередь и возвращаем `jobId`. В `sync` — текущее поведение.
 - Побочный эффект остаётся прежним: worker по завершении пишет live‑версию в `synopses/synopsis_versions`.
 
 ## Frontend
