@@ -1,4 +1,4 @@
-.PHONY: help up down logs backend frontend db-reset db-schema db-seed db-init api
+.PHONY: help up down logs backend frontend db-reset db-schema db-seed db-init api worker
 
 help:
 	@echo "Usage: make [target]"
@@ -34,6 +34,11 @@ api:
 frontend:
 	@echo "Starting frontend on http://localhost:3000"
 	@npm --prefix frontend run dev
+
+worker:
+	@echo "Starting agents RQ worker"
+	@AGENT_WORKER_SIMPLE=1 $(VENV_BIN)/python -m backend.worker.run | cat
+# AICODE-NOTE: AGENT_WORKER_SIMPLE=1 — используем простой воркер, который не использует Redis. Проблема из-за мака.
 
 # AICODE-NOTE: DB helpers now use Python script backend/scripts/db.py (psycopg2)
 # AICODE-NOTE: Virtualenv-aware: by default we use ./venv from project root
