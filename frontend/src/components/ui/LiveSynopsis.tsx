@@ -22,6 +22,8 @@ export interface LiveSynopsisProps {
   className?: string
   // AICODE-NOTE: Позволяет управлять стартовым состоянием разворота
   defaultOpen?: boolean
+  // AICODE-NOTE: Максимальная высота области контента; при превышении включается вертикальный скролл
+  maxBodyHeight?: string
 }
 
 const CodeBlock = ({ language, code }: { language?: string; code: string }) => (
@@ -34,7 +36,7 @@ const CodeBlock = ({ language, code }: { language?: string; code: string }) => (
 )
 
 const LiveSynopsis = React.forwardRef<HTMLDivElement, LiveSynopsisProps>(
-  ({ items, lastUpdated, className, defaultOpen }, ref) => {
+  ({ items, lastUpdated, className, defaultOpen, maxBodyHeight = "60vh" }, ref) => {
     // AICODE-NOTE: Collapsed by default to reduce visual competition with chat
     const [isOpen, setIsOpen] = React.useState(!!defaultOpen)
 
@@ -62,7 +64,10 @@ const LiveSynopsis = React.forwardRef<HTMLDivElement, LiveSynopsisProps>(
           </div>
 
           <CollapsibleContent>
-            <div className="mt-4 space-y-4 text-sm text-text-secondary">
+            <div
+              className="mt-4 space-y-4 text-sm text-text-secondary overflow-y-auto pr-2"
+              style={{ maxHeight: maxBodyHeight }}
+            >
               {items.map((item, idx) => {
                 switch (item.type) {
                   case "heading":

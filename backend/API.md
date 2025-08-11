@@ -88,6 +88,11 @@ Message { id: string, role: "user"|"assistant"|"tool", content: string, created_
 - `POST /sessions` → upsert `users`, upsert `track_sessions`, ensure `chat_threads`
 - `GET/POST /sessions/{id}/messages/{tab}` → `JOIN chat_threads` и `INSERT chat_messages`
 
+### Synopsis (live + versions)
+- Таблицы: `synopses`, `synopsis_versions`
+- `GET /sessions/{sessionId}/synopsis` → текущая live‑версия: `{ title, items, lastUpdated }`
+- `POST /sessions/{sessionId}/synopsis` → создаёт новую версию и назначает её текущей
+
 ## Контракты
 - `users.device_id` уникален; 1 сессия на пару `(user_id, track_id)`.
 - Для сессии всегда есть ветки `chat|practice|simulation`.
@@ -153,6 +158,30 @@ echo '{"role":"user","content":"Привет!"}' \
     ```
   - Ответ: `{ "plan": { "modules": string[] }, "sources": [] }`
 
+- JSON: `POST /agents/synopsis_manager/v1/synopsis`
+  - Тело:
+  ```json
+  {
+    "session_id": "optional",
+    "memory": "backend|inmem",
+    "query": {
+      "action": "create|update",
+      "params": {
+        "title": "...",
+        "description": "...",
+        "goal": "...",
+        "focus": "theory|practice",
+        "tone": "strict|friendly|motivational|neutral"
+      },
+      "plan": ["Модуль 1", "Модуль 2"],
+      "synopsis": [ /* опционально, текущая версия */ ],
+      "instructions": "опционально: свободные правки"
+    }
+  }
+  ```
+  - Ответ: `{ "synopsis": { "items": [...], "lastUpdated": "YYYY-MM-DD HH:MM" }, "sources": [] }`
+  - Побочный эффект: сохранение новой live‑версии в БД (`synopses/synopsis_versions`).
+
 - SSE (универсальный): `POST /run/agent/{id}/{version}?memory=backend|inmem`
   - Тело: произвольный объект контекста (например, `{ "session_id": "...", "query": { ... } }`)
   - Ответ: поток событий `text/event-stream` (`start_agent`, `planning`, `final_result`, `error`).
@@ -168,6 +197,19 @@ curl -sX POST http://localhost:8000/agents/learning_planner/v1/plan \
 curl -N -sX POST 'http://localhost:8000/run/agent/learning_planner/v1?memory=inmem' \
   -H 'Content-Type: application/json' \
   -d '{"session_id":"dev-s1","query":{"title":"Intro","description":"...","goal":"...","focus":"practice","tone":"neutral"}}'
+
+# JSON‑вызов менеджера конспекта
+curl -sX POST http://localhost:8000/agents/synopsis_manager/v1/synopsis \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "session_id": "dev-s1",
+    "memory": "inmem",
+    "query": {
+      "action": "create",
+      "params": { "title": "Введение в нейросети", "description": "...", "goal": "...", "focus": "theory", "tone": "friendly" },
+      "plan": ["Введение", "Ключевые понятия", "Практика"]
+    }
+  }'
 ```
 
 ### Как добавить нового агента (пошагово)

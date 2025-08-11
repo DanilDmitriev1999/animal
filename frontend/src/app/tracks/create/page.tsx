@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { useSearchParams } from 'next/navigation'
 import { api } from '@/lib/api'
+import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 
 type LearningFocus = 'theory' | 'practice'
@@ -16,6 +17,7 @@ type Tone = 'strict' | 'friendly' | 'motivational' | 'neutral'
 type RoadmapItem = { id: string; text: string }
 
 export default function CreateTrackPage() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const [step, setStep] = React.useState<1 | 2>(1)
   const [title, setTitle] = React.useState('')
@@ -75,12 +77,19 @@ export default function CreateTrackPage() {
     setRoadmap(prev => prev.filter(it => it.id !== id))
   }
 
-  const handleSubmit = () => {
-    // AICODE-TODO: интегрировать сохранение через backend/agent
-    // Пока просто выводим в консоль
-    // eslint-disable-next-line no-console
-    console.log({ title, description, goal, focus, tone, roadmap })
-    alert('Трек создан (демо). См. консоль для данных.')
+  const handleSubmit = async () => {
+    if (!title.trim()) return
+    const plan = roadmap.map(r => r.text).filter(Boolean)
+    try {
+      const track = await api.createTrack({ title, description, goal, roadmap: plan })
+      const slug = encodeURIComponent(track.slug)
+      // Переходим на созданный трек
+      router.push(`/tracks/${slug}`)
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Не удалось создать трек', e)
+      alert('Не удалось создать трек')
+    }
   }
 
   // AICODE-NOTE: Мок-режим удалён.

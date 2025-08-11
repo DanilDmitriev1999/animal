@@ -40,6 +40,8 @@ const TrackPage = ({ params }: { params: Promise<{ slug: string }> }) => {
   })
   const [synopsisItems, setSynopsisItems] = React.useState<SynopsisItem[]>([])
   const [lastUpdatedAt, setLastUpdatedAt] = React.useState<Date>(new Date())
+  const [isSynopsisGenerating, setSynopsisGenerating] = React.useState<boolean>(false)
+  const [isSynopsisRequested, setSynopsisRequested] = React.useState<boolean>(false)
   const [composerValue, setComposerValue] = React.useState<string>("")
   const containerRef = React.useRef<HTMLDivElement>(null)
   // AICODE-NOTE: Контролируем оверлей конспекта
@@ -70,15 +72,16 @@ const TrackPage = ({ params }: { params: Promise<{ slug: string }> }) => {
     const deviceId = getDeviceId()
     ;(async () => {
       try {
+        const safeSlug = (() => { try { return decodeURIComponent(slug) } catch { return slug } })()
         const [t, sid] = await Promise.all([
-          api.getTrack(slug),
-          api.createOrGetSession(deviceId, slug),
+          api.getTrack(safeSlug),
+          api.createOrGetSession(deviceId, safeSlug),
         ])
         if (!mounted) return
         setTrack(t)
         setSessionId(sid)
         const [rmap, chat, practice, simulation] = await Promise.all([
-          api.getRoadmap(slug),
+          api.getRoadmap(safeSlug),
           api.getMessages(sid, 'chat'),
           api.getMessages(sid, 'practice'),
           api.getMessages(sid, 'simulation'),
@@ -92,10 +95,57 @@ const TrackPage = ({ params }: { params: Promise<{ slug: string }> }) => {
         if (mounted) setLoading(false)
       }
     })()
-    return () => {
-      mounted = false
-    }
+    return () => { mounted = false }
   }, [slug])
+
+  // AICODE-NOTE: Фоновая генерация конспекта один раз; затем читаем из БД
+  React.useEffect(() => {
+    if (!track) return
+    if (!sessionId) return
+    if (roadmap.length === 0) return
+    if (isSynopsisRequested) return
+    setSynopsisRequested(true)
+    setSynopsisGenerating(true)
+    setSynopsisItems([{ type: 'note', text: 'Формируется первоначальный конспект…' } as any])
+    ;(async () => {
+      try {
+        // Сначала пробуем взять live-версию из БД
+        const existing = await api.getLiveSynopsis(sessionId)
+        if (existing && Array.isArray(existing.items) && existing.items.length > 0) {
+          setSynopsisItems(existing.items as any)
+          setLastUpdatedAt(new Date(existing.lastUpdated || Date.now()))
+        } else {
+          // Если нет — один раз генерируем и БЭК сохранит live-конспект
+          const res = await api.runSynopsisManager({
+            sessionId,
+            query: {
+              action: 'create',
+              params: { title: track.title, description: track.description ?? '', goal: track.goal ?? '', focus: 'theory', tone: 'friendly' },
+              plan: roadmap.map(r => r.title),
+            },
+            memory: 'inmem',
+          })
+          setSynopsisItems((res.synopsis?.items ?? []) as any)
+          setLastUpdatedAt(new Date())
+        }
+      } catch (e) {
+        // Если маршрут сино́псиса ещё не доступен — тихо попробуем сгенерировать
+        try {
+          const res = await api.runSynopsisManager({
+            sessionId,
+            query: { action: 'create', params: { title: track.title, description: track.description ?? '', goal: track.goal ?? '', focus: 'theory', tone: 'friendly' }, plan: roadmap.map(r => r.title) },
+            memory: 'inmem',
+          })
+          setSynopsisItems((res.synopsis?.items ?? []) as any)
+          setLastUpdatedAt(new Date())
+        } catch {
+          setSynopsisItems([{ type: 'note', text: 'Не удалось сгенерировать конспект. Попробуйте позже.' } as any])
+        }
+      } finally {
+        setSynopsisGenerating(false)
+      }
+    })()
+  }, [track, roadmap, sessionId, isSynopsisRequested])
 
   const handleSynopsisButton = () => {
     setSynopsisPanelVisible((v) => !v)
@@ -242,7 +292,7 @@ const TrackPage = ({ params }: { params: Promise<{ slug: string }> }) => {
                   </button>
                   <LiveSynopsis
                     items={synopsisItems}
-                    lastUpdated={lastUpdatedAt.toLocaleTimeString()}
+                    lastUpdated={isSynopsisGenerating ? 'формируется…' : lastUpdatedAt.toLocaleTimeString()}
                     defaultOpen
                   />
                 </div>
