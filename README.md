@@ -51,3 +51,75 @@ PM для LLM специалиста
 Я LLM разработчик и хочу узнать сторону бизнеса в LLM приложениямх 
 
 Понимать бизнес метрики и развитие LLM продуктов с точки зрения бизнеса
+
+---
+
+### Быстрый старт (локально)
+
+1) Установить зависимости
+```bash
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+```
+
+2) Бэкенд
+```bash
+make api  # или python -m uvicorn backend.app.main:app --reload --port 8000
+```
+
+3) Фронтенд
+```bash
+cd frontend && pnpm i && pnpm dev
+```
+
+Создайте `frontend/.env.local` с базовым URL:
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_FIXED_DEVICE_ID=dev-device
+```
+
+---
+
+### Вызов разговорных агентов
+
+Бэкенд предоставляет JSON‑маршруты для трёх диалоговых агентов. Ответ — простой текст в поле `message`.
+
+- Наставник чата:
+```bash
+curl -sX POST http://localhost:8000/agents/mentor_chat/v1/reply \
+  -H 'Content-Type: application/json' \
+  -d '{"session_id":"dev-s1","memory":"inmem","user_message":"Как начать?"}'
+```
+
+- Тренер практики:
+```bash
+curl -sX POST http://localhost:8000/agents/practice_coach/v1/hint \
+  -H 'Content-Type: application/json' \
+  -d '{"session_id":"dev-s1","memory":"inmem","user_message":"Дай первый шаг"}'
+```
+
+- Ведущий симуляции:
+```bash
+curl -sX POST http://localhost:8000/agents/simulation_mentor/v1/turn \
+  -H 'Content-Type: application/json' \
+  -d '{"session_id":"dev-s1","memory":"inmem","user_message":"Смоделируй разговор"}'
+```
+
+При `apply_side_effects=true` ответы будут сохранены в соответствующую ветку чата в БД.
+
+---
+
+### Фронтенд‑клиент
+
+В `frontend/src/lib/api.ts` добавлены методы:
+- `runMentorChat({ sessionId?, message, memory?, applySideEffects? })`
+- `runPracticeCoach({ sessionId?, message, memory?, applySideEffects? })`
+- `runSimulationMentor({ sessionId?, message, memory?, applySideEffects? })`
+
+Использование (пример):
+```ts
+import { api } from '@/lib/api'
+
+const res = await api.runMentorChat({ sessionId, message: 'Привет!' })
+console.log(res.message)
+```

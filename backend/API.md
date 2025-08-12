@@ -220,6 +220,35 @@ curl -sX POST http://localhost:8000/agents/synopsis_manager/v1/synopsis \
   }'
 ```
 
+### Разговорные агенты (JSON)
+- `POST /agents/mentor_chat/v1/reply`
+  - Тело:
+  ```json
+  { "session_id": "optional", "memory": "backend|inmem", "user_message": "строка", "apply_side_effects": true }
+  ```
+  - Ответ: `{ "message": "текст ответа" }`
+  - Побочный эффект при `apply_side_effects=true` и наличии `session_id`: сообщение ассистента пишется в ветку `chat` той же сессии.
+
+- `POST /agents/practice_coach/v1/hint`
+  - Тело/ответ аналогичны; запись в ветку `practice`.
+
+- `POST /agents/simulation_mentor/v1/turn`
+  - Тело/ответ аналогичны; запись в ветку `simulation`.
+
+Примеры:
+```bash
+curl -sX POST http://localhost:8000/agents/mentor_chat/v1/reply \
+  -H 'Content-Type: application/json' \
+  -d '{"session_id":"dev-s1","memory":"inmem","user_message":"Привет!"}' | jq
+
+curl -sX POST http://localhost:8000/agents/practice_coach/v1/hint \
+  -H 'Content-Type: application/json' \
+  -d '{"session_id":"dev-s1","memory":"inmem","user_message":"Дай первый шаг"}' | jq
+
+curl -sX POST http://localhost:8000/agents/simulation_mentor/v1/turn \
+  -H 'Content-Type: application/json' \
+  -d '{"session_id":"dev-s1","memory":"inmem","user_message":"Смоделируй разговор"}' | jq
+```
 ### Как добавить нового агента (пошагово)
 1) Определите агента в пакете `agents`:
    - Файл: `agents/under_hood/<agent_id>/agent.py`

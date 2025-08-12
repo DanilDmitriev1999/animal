@@ -853,4 +853,102 @@ def shutdown_event() -> None:
             state.db_pool = None
 
 
+# ----------------------------------------------------------------------------
+# Разговорные агенты (JSON): mentor_chat, practice_coach, simulation_mentor
+# ----------------------------------------------------------------------------
+
+
+class ChatAgentIn(BaseModel):
+    session_id: Optional[str] = None
+    user_message: str = Field(default="", min_length=0)
+    memory: Optional[str] = Field(default="inmem", pattern="^(backend|inmem)$")
+    apply_side_effects: Optional[bool] = True
+
+
+def _append_assistant_message_safe(session_id: str, tab: str, text: str, meta: Dict[str, Any]) -> None:
+    """Best-effort запись сообщения ассистента в БД.
+
+    Если сессии/ветки нет — просто выходим без исключений.
+    """
+    try:
+        with DB() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                try:
+                    thread_id = _get_thread_id_or_404(cur, session_id, tab)
+                except HTTPException:
+                    return
+                cur.execute(
+                    """
+                    INSERT INTO chat_messages (thread_id, role, content, meta_json)
+                    VALUES (%s::uuid, 'assistant'::message_role, %s, %s::jsonb)
+                    """,
+                    (thread_id, text, json.dumps(meta)),
+                )
+    except Exception:
+        # Проглатываем ошибки записи — это побочный эффект
+        pass
+
+
+async def _run_dialog_agent(agent_id: str, body: ChatAgentIn) -> Dict[str, Any]:
+    if not _AGENTS_AVAILABLE:
+        raise HTTPException(status_code=501, detail="Agents package is not available")
+
+    # Память: для диалоговых агентов всегда используем BackendMemory,
+    # чтобы учитывать контекст из БД (ветки chat/practice/simulation),
+    # вне зависимости от флага memory. InMemoryMemory подходит только для CLI.
+    mem = BackendMemory()
+    session_id = body.session_id or "dev-session"
+
+    llm = OpenAILLM()
+    # Прокинем вкладку в роль, чтобы память грузила правильный поток
+    tab_by_agent = {
+        "mentor_chat": "chat",
+        "practice_coach": "practice",
+        "simulation_mentor": "simulation",
+    }
+    role_policy = {"tab": tab_by_agent.get(agent_id, "chat")}
+    agent = get_agent(agent_id, "v1", memory=mem, role_policy=role_policy, llm=llm)
+
+    final_payload: Optional[Dict[str, Any]] = None
+    async for ev in run_agent_with_events(agent, session_id=session_id, user_message=body.user_message):
+        if ev.event == "final_result":
+            final_payload = ev.payload or {}
+
+    if not final_payload:
+        raise HTTPException(status_code=500, detail="Agent did not produce a result")
+
+    return final_payload
+
+
+@app.post("/agents/mentor_chat/v1/reply")
+async def run_mentor_chat(body: ChatAgentIn) -> Dict[str, Any]:
+    payload = await _run_dialog_agent("mentor_chat", body)
+    # Побочный эффект: записать ответ ассистента в ветку chat
+    if (body.apply_side_effects is None or body.apply_side_effects) and body.session_id:
+        text = str((payload or {}).get("message", ""))
+        if text:
+            _append_assistant_message_safe(body.session_id, "chat", text, {"agentId": "mentor_chat", "version": "v1"})
+    return payload
+
+
+@app.post("/agents/practice_coach/v1/hint")
+async def run_practice_coach(body: ChatAgentIn) -> Dict[str, Any]:
+    payload = await _run_dialog_agent("practice_coach", body)
+    if (body.apply_side_effects is None or body.apply_side_effects) and body.session_id:
+        text = str((payload or {}).get("message", ""))
+        if text:
+            _append_assistant_message_safe(body.session_id, "practice", text, {"agentId": "practice_coach", "version": "v1"})
+    return payload
+
+
+@app.post("/agents/simulation_mentor/v1/turn")
+async def run_simulation_mentor(body: ChatAgentIn) -> Dict[str, Any]:
+    payload = await _run_dialog_agent("simulation_mentor", body)
+    if (body.apply_side_effects is None or body.apply_side_effects) and body.session_id:
+        text = str((payload or {}).get("message", ""))
+        if text:
+            _append_assistant_message_safe(body.session_id, "simulation", text, {"agentId": "simulation_mentor", "version": "v1"})
+    return payload
+
+
 

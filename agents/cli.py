@@ -187,3 +187,9 @@ if __name__ == "__main__":  # pragma: no cover
 # --plan "Обновлённый модуль 1" --plan "Новый модуль 2" \
 # --instructions "Добавь определения для overfitting/underfitting и список шагов внедрения." \
 # --memory inmem
+
+# python3 -m agents.cli run mentor_chat v1 --session dev-s1 --query "Как лучше начать этот курс?" --memory inmem
+
+# python3 -m agents.cli run practice_coach v1 --session dev-s1 --query "Хочу первую задачу по теме" --memory inmem
+
+# python3 -m agents.cli run simulation_mentor v1 --session dev-s1 --query "Смоделируй разговор с заказчиком" --memory inmem

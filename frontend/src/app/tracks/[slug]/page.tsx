@@ -177,6 +177,26 @@ const TrackPage = ({ params }: { params: Promise<{ slug: string }> }) => {
     }))
     // AICODE-NOTE: Отправляем на сервер (ошибку не блокируем UI, но можно улучшить)
     api.postMessage(sessionId, target, { role: 'user', content: trimmed }).catch(() => {})
+    // AICODE-NOTE: Вызов подходящего агента для автоответа
+    ;(async () => {
+      try {
+        let res: { message: string } | null = null
+        if (target === 'chat') {
+          res = await api.runMentorChat({ sessionId, message: trimmed, memory: 'inmem', applySideEffects: true })
+        } else if (target === 'practice') {
+          res = await api.runPracticeCoach({ sessionId, message: trimmed, memory: 'inmem', applySideEffects: true })
+        } else if (target === 'simulation') {
+          res = await api.runSimulationMentor({ sessionId, message: trimmed, memory: 'inmem', applySideEffects: true })
+        }
+        if (res && typeof res.message === 'string' && res.message.trim()) {
+          const assistantMsg: Message = { role: 'assistant', message: res.message }
+          setMessages(prev => ({ ...prev, [target]: [...prev[target], assistantMsg] }))
+        }
+      } catch (e) {
+        const assistantMsg: Message = { role: 'assistant', message: 'Извините, агент временно недоступен.' }
+        setMessages(prev => ({ ...prev, [target]: [...prev[target], assistantMsg] }))
+      }
+    })()
     // AICODE-NOTE: Naive synopsis enrichment: append user's message as a note item
     setSynopsisItems(prev => [
       ...prev,
