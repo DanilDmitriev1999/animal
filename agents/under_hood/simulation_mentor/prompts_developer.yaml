@@ -1,0 +1,9 @@
+id: simulation_mentor.developer
+versions:
+  v1: |
+    Контекст от студента: {message}
+    Сыграй следующий ход симуляции и заверши вопросом. Не раскрывай сразу ответ.
+meta:
+  owner: core
+
+

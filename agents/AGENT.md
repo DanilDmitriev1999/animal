@@ -208,6 +208,116 @@ async for ev in run_agent_with_events(agent, session_id="s1", topic="Python"):
 - Вызов по API происходит по паре `(id, version)`.
 
 ---
+### Как добавить нового продуктового агента
+
+// AICODE-NOTE: Универсальная инструкция — не привязана к конкретному агенту.
+
+1) Определите идентификаторы
+- **id**: строка в `kebab_case` или `snake_case` (например, `mentor_chat`).
+- **version**: строка версии (например, `v1`).
+
+2) Создайте директорию агента
+```
+agents/under_hood/<agent_id>/
+  __init__.py
+  agent.py
+  prompts.yaml                # system‑промпт (опц., но рекомендуется)
+  prompts_developer.yaml      # developer‑промпт (опц.)
+  so_schema.py                # Pydantic‑схемы для строгого вывода (опц.)
+```
+
+3) Зарегистрируйте фабрику и класс агента
+- Фабрика помечается декоратором `@register_agent(id, version)` и возвращает инстанс класса вашего агента.
+- Класс наследуется от `AgentABC` и реализует метод `_run(...)`, который `yield`‑ит события и завершает `final_result`.
+
+Пример минимального скелета:
+```python
+from __future__ import annotations
+
+import os
+from typing import AsyncIterator
+
+from ...base import AgentABC, Event
+from ...registry import register_agent, get_prompt
+from ...roles.policy import DialogueBuilder, to_openai_chat_messages
+
+
+@register_agent("my_agent", "v1")
+def factory(memory, role_policy=None, meta=None, llm=None):
+    # LLM и прочие зависимости подаются извне
+    return MyAgent(memory=memory, role_policy=role_policy or {}, meta=meta or {}, llm=llm)
+
+
+class MyAgent(AgentABC):
+    id = "my_agent"
+    version = "v1"
+
+    async def _run(self, *, session_id: str, user_message: str = "", **ctx) -> AsyncIterator[Event]:
+        step = "my_step"
+        # Промежуточное событие прогресса
+        yield self.emit(step, session_id, payload={"message": "Готовим ответ"})
+
+        # 1) Соберите диалог с учётом памяти и промптов
+        system_text = get_prompt("my_agent.system")  # если используете Prompt Registry
+        developer_text = (get_prompt("my_agent.developer").format(message=user_message or ""))
+        dialog = await DialogueBuilder.build(
+            self.memory, session_id, self.role_policy, step,
+            system_text=system_text, developer_text=developer_text,
+        )
+
+        # 2) Вызов LLM (клиент прокинут через фабрику; модель — через meta/env)
+        model = self.meta.get("model") or os.getenv("AGENTS_DEFAULT_MODEL", "gpt-4o-mini")
+        messages = to_openai_chat_messages(dialog)
+        response = await self.llm.chat(messages=messages, model=model)
+        text = response.result if isinstance(response.result, str) else str(response.result)
+
+        # 3) Сохраните результат шага в память и отдайте финальное событие
+        await self.memory.append(session_id, [{"role": "assistant", "name": step, "content": {"message": text}}])
+        yield self.emit("final_result", session_id, payload={"message": text})
+```
+
+4) Добавьте промпты в YAML (Prompt Registry)
+- Файлы кладутся рядом с агентом и подхватываются `autodiscover_prompts()` автоматически.
+- Структура файла:
+```yaml
+id: my_agent.system
+versions:
+  v1: |
+    Ты продуктовый AI‑агент. Веди диалог кратко и по делу.
+meta:
+  owner: core
+```
+
+5) Инициализация и запуск
+- В рантайме вызывается `autodiscover_prompts()` и `autodiscover()` (делается бэкендом/CLI).
+- Получение и запуск:
+```python
+from agents import autodiscover, autodiscover_prompts
+from agents.registry import get_agent
+from agents.memory import InMemoryMemory
+from agents.llm import OpenAILLM
+from agents.runner import run_agent_with_events
+
+autodiscover_prompts(); autodiscover()
+agent = get_agent("my_agent", "v1", memory=InMemoryMemory(), llm=OpenAILLM())
+async for ev in run_agent_with_events(agent, session_id="s1", user_message="Привет"):
+    print(ev.model_dump())
+```
+
+6) Соглашения и требования
+- Агент обязан принимать `memory` и `session_id`; `llm` и `meta` — опционально, но предпочтительно через фабрику.
+- `AgentABC` сам отправит `start_agent`; вы генерируете шаги и `final_result`.
+- Старайтесь разделять этапы на небольшие шаги и писать в память результат каждого шага `{"role":"assistant","name":"<step>",...}`.
+- Для воспроизводимости используйте Prompt Registry, а не хардкод строк в коде.
+
+7) Отладка через CLI
+```bash
+python3 -m agents.cli list              # проверка авто‑регистрации
+python3 -m agents.cli run my_agent v1 \
+  --session dev-s1 --query "Привет" --memory inmem
+```
+
+---
 
 ### Паттерны (скелеты для переиспользования)
 

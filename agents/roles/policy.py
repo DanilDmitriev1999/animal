@@ -20,9 +20,11 @@ class DialogueBuilder:
         messages: list[dict] = []
         if role_policy.get("inject_system", True):
             messages.append({"role": "system", "content": system_text})
-        messages.append({"role": "user", "content": developer_text})
+        # Историю сообщений загружаем ПЕРЕД текущим запросом, чтобы LLM учитывал контекст,
+        # а затем добавляем текущий user-запрос последним.
         prior = await memory.load_dialog(session_id, role_policy)
         messages.extend(prior)
+        messages.append({"role": "user", "content": developer_text})
         if role_policy.get("synthetic_user_between_steps", False):
             messages.append({"role": "user", "content": f"continue:{step_name}"})
         return messages

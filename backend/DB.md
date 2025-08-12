@@ -91,4 +91,9 @@ make db-seed
 - Используются перечисления `template_scope`, `chat_tab`, `message_role`, `synopsis_origin`.
 - Расширение `pgcrypto` — для `gen_random_uuid()`.
 
+## Побочные эффекты разговорных агентов
+
+- JSON‑маршруты `POST /agents/mentor_chat/v1/reply`, `/agents/practice_coach/v1/hint`, `/agents/simulation_mentor/v1/turn` при флаге `apply_side_effects=true` и наличии `session_id` записывают результат ответа ассистента в соответствующую ветку `chat_threads` (`chat|practice|simulation`) как запись в `chat_messages` с ролью `assistant` и `meta_json = { agentId, version }`.
+- Если `session_id` отсутствует или ветка не найдена — запись пропускается (без ошибок).
+
 
